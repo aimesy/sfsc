@@ -1285,7 +1285,6 @@ are used for this public coverage summary._
 
 </details>
 
-[T&Cs](https://sfsc.amyc.us/terms.html)
 <details>
 <summary><strong>Department 301 - Discovery</strong> | 4,218 rulings | 2024-03-19 to 2026-05-22 | 387 hearing days | 0 gaps</summary>
 
@@ -1391,3 +1390,5 @@ tentative ruling days; only observed hearing dates and explicit archive observat
 are used for this public coverage summary._
 
 </details>
+
+[T&Cs](https://sfsc.amyc.us/terms.html)
