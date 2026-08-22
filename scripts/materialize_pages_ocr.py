@@ -21,8 +21,10 @@ PUBLIC_RELEASE_RE = re.compile(
     r"^https://github\.com/aimesy/(?:sfsc|sfsc-data)/releases/download/[^/]+/[^/?#]+$"
 )
 PUBLIC_ASSET_API_RE = re.compile(
-    r"^https://api\.github\.com/repos/aimesy/(?:sfsc|sfsc-data)/releases/assets/\d+$"
+    r"^https://api\.github\.com/repos/(?P<repository>aimesy/(?:sfsc|sfsc-data))/"
+    r"releases/assets/(?P<asset_id>\d+)$"
 )
+REPOSITORY_RE = re.compile(r"^aimesy/[A-Za-z0-9_.-]+$")
 SHARD_KEY_RE = re.compile(r"^[^/\s]+/[0-9a-f]{2}$")
 SHARD_REF_PREFIX = "release-shard:"
 
@@ -34,7 +36,22 @@ def clean_sha(value: Any) -> str:
     return sha
 
 
-def sidecar_url(row: dict[str, Any], *, prefer_api: bool = False) -> str:
+def aliased_asset_api_url(url: str, aliases: dict[str, str]) -> str:
+    match = PUBLIC_ASSET_API_RE.fullmatch(url)
+    if not match:
+        raise ValueError("invalid OCR asset API URL")
+    repository = aliases.get(match.group("repository"), match.group("repository"))
+    if not REPOSITORY_RE.fullmatch(repository):
+        raise ValueError("invalid OCR asset repository alias")
+    return f"https://api.github.com/repos/{repository}/releases/assets/{match.group('asset_id')}"
+
+
+def sidecar_url(
+    row: dict[str, Any],
+    *,
+    prefer_api: bool = False,
+    repository_aliases: dict[str, str] | None = None,
+) -> str:
     ocr_json = row.get("ocr_json") if isinstance(row.get("ocr_json"), dict) else {}
     browser_candidates = [
         row.get("plain_text_url"),
@@ -48,17 +65,25 @@ def sidecar_url(row: dict[str, Any], *, prefer_api: bool = False) -> str:
     candidates = api_candidates + browser_candidates if prefer_api else browser_candidates + api_candidates
     for value in candidates:
         url = str(value or "").strip()
-        if PUBLIC_RELEASE_RE.fullmatch(url) or PUBLIC_ASSET_API_RE.fullmatch(url):
+        if PUBLIC_ASSET_API_RE.fullmatch(url):
+            return aliased_asset_api_url(url, repository_aliases or {})
+        if PUBLIC_RELEASE_RE.fullmatch(url):
             return url
     raise ValueError(f"no public OCR JSON asset URL for {clean_sha(row.get('sha256'))}")
 
 
-def shard_url(metadata: dict[str, Any], *, prefer_api: bool = False) -> str:
+def shard_url(
+    metadata: dict[str, Any],
+    *,
+    prefer_api: bool = False,
+    repository_aliases: dict[str, str] | None = None,
+) -> str:
     if prefer_api:
         repository = str(metadata.get("release_repo") or "").strip()
         asset_id = metadata.get("asset_id")
         if re.fullmatch(r"aimesy/(?:sfsc|sfsc-data)", repository) and isinstance(asset_id, int):
-            return f"https://api.github.com/repos/{repository}/releases/assets/{asset_id}"
+            url = f"https://api.github.com/repos/{repository}/releases/assets/{asset_id}"
+            return aliased_asset_api_url(url, repository_aliases or {})
     url = str(metadata.get("url") or "").strip()
     if not PUBLIC_RELEASE_RE.fullmatch(url):
         raise ValueError("OCR shard has no public release URL")
@@ -183,6 +208,7 @@ def materialize(
     *,
     workers: int = 6,
     token: str = "",
+    repository_aliases: dict[str, str] | None = None,
     fetcher: Callable[[str], bytes] | None = None,
 ) -> dict[str, int]:
     index = json.loads(index_path.read_text(encoding="utf-8"))
@@ -207,7 +233,11 @@ def materialize(
             owner = ("shard", shard_key)
             shard_jobs.setdefault(shard_key, set()).add(sha)
         else:
-            url = sidecar_url(raw, prefer_api=bool(token))
+            url = sidecar_url(
+                raw,
+                prefer_api=bool(token),
+                repository_aliases=repository_aliases,
+            )
             owner = ("direct", url)
             direct_jobs[sha] = url
         previous = owners.get(sha)
@@ -220,7 +250,11 @@ def materialize(
         metadata = text_shards.get(key)
         if not isinstance(metadata, dict):
             raise ValueError(f"OCR shard metadata is missing for {key}")
-        shard_url(metadata, prefer_api=bool(token))
+        shard_url(
+            metadata,
+            prefer_api=bool(token),
+            repository_aliases=repository_aliases,
+        )
         shard_metadata[key] = metadata
 
     fetch_one = fetcher or (lambda url: fetch_asset(url, token=token))
@@ -232,7 +266,13 @@ def materialize(
     def run_shard(item: tuple[str, set[str]]) -> tuple[str, dict[str, dict[str, Any]]]:
         key, expected_shas = item
         metadata = shard_metadata[key]
-        payload = fetch_one(shard_url(metadata, prefer_api=bool(token)))
+        payload = fetch_one(
+            shard_url(
+                metadata,
+                prefer_api=bool(token),
+                repository_aliases=repository_aliases,
+            )
+        )
         return key, validate_shard(payload, metadata, expected_shas)
 
     records: dict[str, dict[str, Any]] = {}
@@ -275,11 +315,19 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--workers", type=int, default=6)
     args = parser.parse_args()
+    aliases_raw = os.environ.get("SFSC_RELEASE_REPOSITORY_ALIASES", "").strip()
+    aliases = json.loads(aliases_raw) if aliases_raw else {}
+    if not isinstance(aliases, dict) or any(
+        not REPOSITORY_RE.fullmatch(str(key)) or not REPOSITORY_RE.fullmatch(str(value))
+        for key, value in aliases.items()
+    ):
+        raise ValueError("invalid release repository aliases")
     result = materialize(
         args.index,
         args.output_dir,
         workers=args.workers,
         token=os.environ.get("GITHUB_TOKEN", ""),
+        repository_aliases={str(key): str(value) for key, value in aliases.items()},
     )
     print(
         f"Materialized {result['documents']} verified OCR sidecars "

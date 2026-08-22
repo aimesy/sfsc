@@ -485,6 +485,7 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.SFSC_DATA_TOKEN }}
+          SFSC_RELEASE_REPOSITORY_ALIASES: ${{ secrets.SFSC_RELEASE_REPOSITORY_ALIASES }}
         run: |
           set -euo pipefail
           python3 scripts/test_materialize_pages_ocr.py

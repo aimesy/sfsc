@@ -102,6 +102,27 @@ class MaterializePagesOcrTests(unittest.TestCase):
             "https://api.github.com/repos/aimesy/sfsc-data/releases/assets/123",
         )
 
+    def test_authenticated_assets_apply_secret_repository_alias(self) -> None:
+        aliases = {"aimesy/sfsc": "aimesy/private-publication-source"}
+        api_url = "https://api.github.com/repos/aimesy/sfsc/releases/assets/456"
+        self.assertEqual(
+            module.aliased_asset_api_url(api_url, aliases),
+            "https://api.github.com/repos/aimesy/private-publication-source/releases/assets/456",
+        )
+        metadata = {
+            "url": "https://github.com/aimesy/sfsc/releases/download/ocr-test/ocr.ndjson",
+            "release_repo": "aimesy/sfsc",
+            "asset_id": 456,
+        }
+        self.assertEqual(
+            module.shard_url(
+                metadata,
+                prefer_api=True,
+                repository_aliases=aliases,
+            ),
+            "https://api.github.com/repos/aimesy/private-publication-source/releases/assets/456",
+        )
+
     def test_materializes_hash_verified_release_shard_once(self) -> None:
         first_sha = "e" * 64
         second_sha = "f" * 64
