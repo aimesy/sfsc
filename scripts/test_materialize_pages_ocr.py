@@ -7,11 +7,30 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
+import urllib.error
 
 import materialize_pages_ocr as module
 
 
 class MaterializePagesOcrTests(unittest.TestCase):
+    def test_permanent_missing_asset_fails_without_retry_delay(self) -> None:
+        error = urllib.error.HTTPError(
+            "https://api.github.com/repos/aimesy/sfsc/releases/assets/123",
+            404,
+            "Not Found",
+            {},
+            None,
+        )
+        with (
+            mock.patch.object(module.urllib.request, "urlopen", side_effect=error) as opener,
+            mock.patch.object(module.time, "sleep") as sleeper,
+            self.assertRaises(urllib.error.HTTPError),
+        ):
+            module.fetch_asset(error.url, attempts=6)
+        self.assertEqual(opener.call_count, 1)
+        sleeper.assert_not_called()
+
     def test_materializes_verified_sidecar(self) -> None:
         sha = "a" * 64
         url = f"https://github.com/aimesy/sfsc/releases/download/ocr-test/{sha}.json"

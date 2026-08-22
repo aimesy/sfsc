@@ -27,6 +27,7 @@ PUBLIC_ASSET_API_RE = re.compile(
 REPOSITORY_RE = re.compile(r"^aimesy/[A-Za-z0-9_.-]+$")
 SHARD_KEY_RE = re.compile(r"^[^/\s]+/[0-9a-f]{2}$")
 SHARD_REF_PREFIX = "release-shard:"
+RETRYABLE_HTTP_CODES = {408, 429, 500, 502, 503, 504}
 
 
 def clean_sha(value: Any) -> str:
@@ -190,7 +191,14 @@ def fetch_asset(url: str, *, token: str = "", attempts: int = 6) -> bytes:
             with urllib.request.urlopen(request, timeout=120) as response:
                 return response.read()
         except Exception as exc:
-            if attempt == attempts:
+            if isinstance(exc, urllib.error.HTTPError):
+                retryable = exc.code in RETRYABLE_HTTP_CODES
+            else:
+                retryable = isinstance(
+                    exc,
+                    (urllib.error.URLError, TimeoutError, ConnectionError),
+                )
+            if not retryable or attempt == attempts:
                 raise
             delay = min(2**attempt, 30)
             if isinstance(exc, urllib.error.HTTPError) and exc.code == 429:
