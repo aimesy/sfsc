@@ -3,6 +3,8 @@ import fs from 'node:fs';
 
 const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8')
   .replace(/\r\n?/g, '\n');
+const terms = fs.readFileSync(new URL('../terms.html', import.meta.url), 'utf8')
+  .replace(/\r\n?/g, '\n');
 const classicInlineScripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
   .filter((match) => !/\btype\s*=\s*["']module["']/i.test(match[1] || ''))
   .map((match) => match[2])
@@ -16,6 +18,16 @@ assert.doesNotMatch(html, /PDF\/OCR keys|archived bytes\/OCR|Preview\/OCR/,
   'PDF storage and OCR availability must never be presented as one state');
 assert.doesNotMatch(html, /tentative[-]ruling/i,
   'viewer copy should spell tentative ruling without a hyphen, including adjectival uses');
+assert.match(html, /<link rel="terms-of-service" href="\.\/terms\.html">/,
+  'viewer should advertise the linked data terms');
+assert.match(html, /<a href="\.\/terms\.html"[^>]*>T&amp;Cs<\/a>/,
+  'viewer should expose only the quiet T&Cs footer link');
+assert.match(terms, /Version 0\.1\. Effective August 22, 2026\./,
+  'terms page should identify the active version');
+assert.match(terms, /I claim no ownership in facts, official court records, government works/,
+  'terms must preserve the legal status of source records and facts');
+assert.match(terms, /commercial artificial intelligence or machine learning system/,
+  'terms must retain the commercial AI license boundary');
 assert.match(html, /let caseDirectoryLoadPromise = null;[\s\S]*?if \(!caseDirectoryLoadPromise\)[\s\S]*?await caseDirectoryLoadPromise;/,
   'case-directory source selection should be single-flight during startup');
 assert.doesNotMatch(html, /caseDirectoryUseRaw|caseDirectoryRawBase/,
@@ -84,6 +96,8 @@ assert.match(pagesWorkflow, /data_root_files = \["judges\.json"\]/,
   'Pages should publish judges.json from the exact selected data commit');
 assert.doesNotMatch(pagesWorkflow, /^\s+root_files = \[[^\r\n]*"judges\.json"/m,
   'Pages must not publish a potentially stale product-repository judges.json');
+assert.match(pagesWorkflow, /root_files = \[[^\r\n]*"terms\.html"/,
+  'Pages must publish the linked terms page');
 
 assert.match(html, /\['decreed_name', 'Decreed name'\]/,
   'Advanced case search should expose the verified decreed-name field');

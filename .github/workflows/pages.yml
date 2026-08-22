@@ -145,7 +145,7 @@ jobs:
           token = os.environ.get("GITHUB_TOKEN", "")
           site = pathlib.Path("_site")
           source_root = pathlib.Path.cwd()
-          root_files = [".nojekyll", "CNAME", "index.html", "README.md", "tag_registry.json"]
+          root_files = [".nojekyll", "CNAME", "index.html", "README.md", "tag_registry.json", "terms.html"]
           root_dirs = ["assets"]
           data_root_files = ["judges.json"]
           data_dirs = ["data"]
