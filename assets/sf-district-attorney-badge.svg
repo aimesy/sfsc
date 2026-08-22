@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">San Francisco District Attorney</title>
+  <desc id="desc">Gold seven-point star with blue trim and a San Francisco city-seal roundel.</desc>
+  <defs>
+    <path id="topArc" d="M139 270a117 117 0 0 1 234 0"/>
+    <path id="bottomArc" d="M150 302a110 110 0 0 0 212 0"/>
+    <clipPath id="sealClip"><circle cx="256" cy="257" r="76"/></clipPath>
+  </defs>
+  <polygon points="256,16 331.5,99.23 443.64,106.36 425.64,217.28 489.98,309.41 392.04,364.49 360.13,472.23 256,430 151.87,472.23 119.96,364.49 22.02,309.41 86.36,217.28 68.36,106.36 180.5,99.23"
+    fill="#f9b21b" stroke="#183f73" stroke-width="17" stroke-linejoin="round"/>
+  <polygon points="256,31 326.7,108.9 431.7,115.6 414.8,219.5 475,305.7 384.2,357.2 354.3,458.1 256,418.2 157.7,458.1 127.8,357.2 37,305.7 97.2,219.5 80.3,115.6 185.3,108.9"
+    fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="256" cy="257" r="137" fill="#fff" stroke="#183f73" stroke-width="7"/>
+  <circle cx="256" cy="257" r="105" fill="#fff" stroke="#183f73" stroke-width="3"/>
+  <g clip-path="url(#sealClip)">
+    <circle cx="256" cy="257" r="76" fill="#eaf3f8"/>
+    <path d="M180 267h152v66H180z" fill="#d7ecf6"/>
+    <path d="M180 291c28-10 49 11 76 1 27-10 49 9 76-1v42H180z" fill="#66a9cf"/>
+    <path d="M209 276h94l-10 22h-74z" fill="#fff" stroke="#183f73" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M223 250h66v29h-66zM239 228h34v23h-34z" fill="#f9b21b" stroke="#183f73" stroke-width="5"/>
+    <path d="M204 306h104M216 317h80" fill="none" stroke="#183f73" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="210" cy="232" r="12" fill="#f9b21b" stroke="#183f73" stroke-width="4"/>
+    <circle cx="302" cy="232" r="12" fill="#f9b21b" stroke="#183f73" stroke-width="4"/>
+    <path d="M197 272l13-25 13 25M289 272l13-25 13 25" fill="#fff" stroke="#183f73" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M256 188l6 20-6 17-6-17zM231 194l12 18-1 17-11-14zM281 194l-12 18 1 17 11-14z" fill="#f9b21b"/>
+  </g>
+  <g fill="#183f73" font-family="Arial,Helvetica,sans-serif" font-weight="700" text-anchor="middle" letter-spacing="1.5">
+    <text font-size="20"><textPath href="#topArc" startOffset="50%">DISTRICT ATTORNEY'S OFFICE</textPath></text>
+    <text font-size="23"><textPath href="#bottomArc" startOffset="50%">SAN FRANCISCO</textPath></text>
+  </g>
+  <circle cx="136" cy="278" r="4" fill="#183f73"/>
+  <circle cx="376" cy="278" r="4" fill="#183f73"/>
+</svg>

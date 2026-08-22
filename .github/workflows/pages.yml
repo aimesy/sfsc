@@ -1,0 +1,851 @@
+name: Deploy slim GitHub Pages site
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      data_repository:
+        description: 'Archive/data repository to publish from'
+        required: false
+        default: 'aimesy/sfsc-data'
+      data_ref:
+        description: 'Archive/data branch or commit'
+        required: false
+        default: 'master'
+  repository_dispatch:
+    types: [sfsc-data-updated]
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: sfsc-slim-pages-v4
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      actions: read
+      pages: write
+      id-token: write
+    if: >-
+      ${{
+        github.repository == 'aimesy/sfsc' &&
+        (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') &&
+        (github.event_name != 'repository_dispatch' || github.event.client_payload.pages_ready == true || github.event.client_payload.pages_ready == 'true')
+      }}
+    steps:
+      - name: Check out product repo (build scripts)
+        uses: actions/checkout@v4
+        with:
+          # README synchronization may need to rebase over a nearby concurrent
+          # push, but fetching the repository's entire archive and tag history
+          # makes this deployment step take many minutes.
+          fetch-depth: 20
+      - name: Check live-count semantics
+        run: python3 scripts/check_live_count_metrics.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check viewer static contracts
+        run: node scripts/check_viewer_static.mjs
+      - name: Check out data repo (Pages payload)
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SFSC_DATA_TOKEN }}
+          repository: ${{ github.event.client_payload.data_repository || github.event.inputs.data_repository || 'aimesy/sfsc-data' }}
+          ref: ${{ github.event.client_payload.data_sha || github.event.client_payload.data_ref || github.event.inputs.data_ref || 'master' }}
+          path: _data_repo
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            archive/cases-index.ndjson
+            archive/document-index.ndjson
+            archive/ocr-index.json
+            archive/case-directory/**
+            judges.json
+            scripts/incremental_cases.py
+            data/attorneys.parquet
+            data/attorney-practice-rankings.json
+            data/attorney-practice-rankings/**
+            data/judgment-rankings.json
+            data/judgment-rankings/**
+            data/cases.parquet
+            data/representation.parquet
+            data/parties.parquet
+            data/calendar.parquet
+            data/payments.parquet
+            data/estate_roles.parquet
+            data/estate_events.parquet
+            data/case-table-stats.json
+            data/case-category-statistics.json
+            data/causes.parquet
+            data/clerk-categories.json
+            data/clerk-category-cases.json
+            data/entity-profiles-*
+            data/financials.parquet
+            data/judge-cases.json
+            data/judge-facet.json
+            data/judgment-coverage-by-case-type-year.json
+            data/judgments/manifest.json
+            data/litigants.json
+            data/location-cases.json
+            data/location-facet.json
+            data/manifest.json
+            data/news.parquet
+            data/outcome-cases.json
+            data/outcome-facet.json
+            data/profile-metrics*
+            data/status-cases.json
+            data/status-facet.json
+            data/tags.parquet
+            data/tentatives-*
+            data/vexatious-cases.json
+            data/vexatious-facet.json
+            data/vexatious.parquet
+            data/case-representation/**
+            data/fee_schedules/**
+            data/litigants/**
+            data/ocr-curated/**
+      - name: Materialize slim site directory
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.SFSC_DATA_TOKEN }}
+          # Workflow GITHUB_TOKEN pushes do not trigger push workflows. When this
+          # deploy is chained from a completed data workflow, publish the current
+          # product branch tip, not the triggering workflow's original SHA.
+          SFSC_PAGES_SOURCE_REF: ${{ github.event_name == 'push' && github.sha || 'master' }}
+          SFSC_DATA_REPOSITORY: ${{ github.event.client_payload.data_repository || github.event.inputs.data_repository || 'aimesy/sfsc-data' }}
+          SFSC_DATA_REF: ${{ github.event.client_payload.data_sha || github.event.client_payload.data_ref || github.event.inputs.data_ref || 'master' }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import concurrent.futures
+          import os
+          import pathlib
+          import re
+          import shutil
+          import subprocess
+          import sys
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          data_repo = os.environ.get("SFSC_DATA_REPOSITORY", "aimesy/sfsc-data")
+          source_ref = os.environ.get("SFSC_PAGES_SOURCE_REF") or os.environ["GITHUB_SHA"]
+          data_ref = os.environ.get("SFSC_DATA_REF") or "master"
+          token = os.environ.get("GITHUB_TOKEN", "")
+          site = pathlib.Path("_site")
+          source_root = pathlib.Path.cwd()
+          root_files = [".nojekyll", "CNAME", "index.html", "README.md", "tag_registry.json"]
+          root_dirs = ["assets"]
+          data_root_files = ["judges.json"]
+          data_dirs = ["data"]
+          # Pages deployments have a hard 1 GB artifact ceiling. The companion
+          # data repo keeps the complete analytics exports; the slim Pages site
+          # should carry only browser-facing indexes plus temporary build inputs.
+          # Oversized on-demand artifacts (judgment shards, analytics parquets,
+          # and the compact case directory) are loaded by the viewer from the
+          # canonical sfsc-data raw URLs instead of being duplicated into Pages.
+          data_file_allowlist = {
+              "data/attorneys.parquet",  # build input for entity-case-count-bands; removed before upload
+              "data/attorney-practice-rankings.json",
+              "data/judgment-rankings.json",
+              "data/cases.parquet",  # temporary entity-profile build input
+              "data/representation.parquet",  # temporary entity-profile build input
+              "data/parties.parquet",  # temporary entity-profile build input
+              "data/calendar.parquet",  # temporary entity-profile build input
+              "data/payments.parquet",  # temporary entity-profile build input
+              "data/estate_roles.parquet",  # temporary entity-profile build input
+              "data/estate_events.parquet",  # temporary entity-profile build input
+              "data/case-table-stats.json",
+              "data/case-category-statistics.json",
+              "data/causes.parquet",
+              "data/clerk-categories.json",
+              "data/clerk-category-cases.json",
+              "data/entity-profiles-manifest.json",
+              "data/entity-profiles-lookup.json",
+              "data/financials.parquet",
+              "data/judge-cases.json",
+              "data/judge-facet.json",
+              "data/judgment-coverage-by-case-type-year.json",
+              "data/judgments/manifest.json",
+              "data/litigants.json",
+              "data/location-cases.json",
+              "data/location-facet.json",
+              "data/manifest.json",
+              "data/news.parquet",
+              "data/outcome-cases.json",
+              "data/outcome-facet.json",
+              "data/profile-metrics-manifest.json",
+              "data/profile-metrics.json",
+              "data/status-cases.json",
+              "data/status-facet.json",
+              "data/tags.parquet",
+              "data/vexatious-cases.json",
+              "data/vexatious-facet.json",
+              "data/vexatious.parquet",
+          }
+          data_file_prefix_allowlist = (
+              "data/entity-profiles-",
+              "data/profile-metrics-",
+              "data/tentatives-",
+          )
+          data_tree_prefix_allowlist = (
+              "data/attorney-practice-rankings/",
+              "data/case-representation/",
+              "data/fee_schedules/",
+              "data/litigants/",
+              "data/ocr-curated/",
+          )
+          archive_files = ["archive/cases-index.ndjson"]
+          optional_archive_files = ["archive/document-index.ndjson", "archive/ocr-index.json"]
+          archive_dirs = ["archive/case-directory"]
+          api_base = f"https://api.github.com/repos/{repo}"
+          data_api_base = f"https://api.github.com/repos/{data_repo}"
+          api_headers = {
+              "User-Agent": "sfsc-pages-build",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+          if token:
+              api_headers["Authorization"] = f"Bearer {token}"
+          raw_headers = {"User-Agent": "sfsc-pages-build"}
+          if token:
+              raw_headers["Authorization"] = f"Bearer {token}"
+
+          def request_json(url, attempts=8):
+              for attempt in range(1, attempts + 1):
+                  req = urllib.request.Request(url, headers=api_headers)
+                  try:
+                      with urllib.request.urlopen(req, timeout=60) as res:
+                          import json
+                          return json.loads(res.read().decode("utf-8"))
+                  except Exception as exc:
+                      if attempt == attempts:
+                          raise
+                      delay = min(2 ** attempt, 60)
+                      if isinstance(exc, urllib.error.HTTPError) and exc.code in (429, 500, 502, 503, 504):
+                          retry_after = exc.headers.get("Retry-After")
+                          try:
+                              delay = max(delay, int(retry_after))
+                          except (TypeError, ValueError):
+                              delay = max(delay, 30)
+                      time.sleep(delay)
+
+          def request_json_or_none(url):
+              try:
+                  return request_json(url)
+              except urllib.error.HTTPError as exc:
+                  if exc.code in (404, 409):
+                      return None
+                  raise
+
+          def quote_path(path):
+              return urllib.parse.quote(path, safe="/")
+
+          def include_data_payload(path):
+              return (
+                  path in data_file_allowlist
+                  or any(path.startswith(prefix) for prefix in data_file_prefix_allowlist)
+                  or any(path.startswith(prefix) for prefix in data_tree_prefix_allowlist)
+              )
+
+          def resolve_source_sha(ref, base=api_base):
+              ref = str(ref or "").strip()
+              if re.fullmatch(r"[0-9a-fA-F]{40}", ref):
+                  return ref.lower()
+              branch = ref.removeprefix("refs/heads/") or "master"
+              data = request_json(f"{base}/git/ref/heads/{quote_path(branch)}")
+              return str(data["object"]["sha"]).strip().lower()
+
+          def latest_ready_data_sha():
+              try:
+                  commits = request_json(f"{data_api_base}/commits?sha=master&per_page=100")
+              except Exception as exc:
+                  print(f"::warning::could not inspect latest ready data commit; using configured data ref: {exc}", flush=True)
+                  return ""
+              for commit in commits:
+                  info = commit.get("commit") or {}
+                  message = str(info.get("message") or "")
+                  if message.partition("\n")[0].strip() == "Build normalized case tables":
+                      return str(commit.get("sha") or "").strip().lower()
+              return ""
+
+          sha = resolve_source_sha(source_ref)
+          data_sha = None
+          data_resolution_errors = []
+          data_ref_candidates = []
+          for candidate in [data_ref, "master"]:
+              candidate = str(candidate or "").strip()
+              if candidate and candidate not in data_ref_candidates:
+                  data_ref_candidates.append(candidate)
+          if data_ref in ("", "master", "refs/heads/master"):
+              ready_sha = latest_ready_data_sha()
+              if ready_sha and ready_sha not in data_ref_candidates:
+                  data_ref_candidates.append(ready_sha)
+          for candidate in data_ref_candidates:
+              try:
+                  data_sha = resolve_source_sha(candidate, data_api_base)
+                  data_ref = candidate
+                  break
+              except Exception as exc:
+                  data_resolution_errors.append(f"{candidate}: {exc}")
+
+          def download_one(path, repo_name=repo, repo_sha=sha, attempts=8):
+              dest = site / path
+              dest.parent.mkdir(parents=True, exist_ok=True)
+              tmp = dest.with_name(dest.name + ".tmp")
+              url = f"https://raw.githubusercontent.com/{repo_name}/{repo_sha}/{quote_path(path)}"
+              for attempt in range(1, attempts + 1):
+                  try:
+                      req = urllib.request.Request(url, headers=raw_headers)
+                      with urllib.request.urlopen(req, timeout=120) as res, tmp.open("wb") as fh:
+                          shutil.copyfileobj(res, fh)
+                      os.replace(tmp, dest)
+                      return
+                  except Exception as exc:
+                      try:
+                          tmp.unlink()
+                      except FileNotFoundError:
+                          pass
+                      if attempt == attempts:
+                          raise
+                      delay = min(2 ** attempt, 60)
+                      if isinstance(exc, urllib.error.HTTPError) and exc.code == 429:
+                          retry_after = exc.headers.get("Retry-After")
+                          try:
+                              delay = max(delay, int(retry_after))
+                          except (TypeError, ValueError):
+                              delay = max(delay, 30)
+                      time.sleep(delay)
+
+          def copy_local_one(path):
+              src = source_root / path
+              dest = site / path
+              dest.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(src, dest)
+
+          data_checkout = source_root / "_data_repo"
+          use_local_data = (data_checkout / "archive").is_dir() and (data_checkout / "data").is_dir()
+
+          def copy_data_one(path):
+              src = data_checkout / path
+              dest = site / path
+              dest.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(src, dest)
+
+          missing = [path for path in root_files if not (source_root / path).is_file()]
+          missing += [path for path in root_dirs if not (source_root / path).is_dir()]
+          if missing:
+              raise SystemExit(f"Missing expected Pages payload paths: {', '.join(missing)}")
+
+          files = list(root_files)
+          data_files: list[str] = []
+          data_source_repo = data_repo
+          data_source_api_base = data_api_base
+          if use_local_data:
+              try:
+                  data_sha = subprocess.check_output(
+                      ["git", "-C", str(data_checkout), "rev-parse", "HEAD"],
+                      text=True,
+                  ).strip()
+              except Exception:
+                  data_sha = str(data_ref or "local")
+              missing += [path for path in archive_files if not (data_checkout / path).is_file()]
+              missing += [path for path in archive_dirs if not (data_checkout / path).is_dir()]
+              missing += [path for path in data_root_files if not (data_checkout / path).is_file()]
+              missing += [dirname for dirname in data_dirs if not (data_checkout / dirname).is_dir()]
+              if missing:
+                  raise SystemExit(f"Missing expected Pages payload paths: {', '.join(missing)}")
+              data_files.extend(path for path in archive_files if (data_checkout / path).is_file())
+              data_files.extend(path for path in optional_archive_files if (data_checkout / path).is_file())
+              data_files.extend(path for path in data_root_files if (data_checkout / path).is_file())
+              for dirname in archive_dirs:
+                  for item in (data_checkout / dirname).rglob("*"):
+                      if item.is_file():
+                          data_files.append(item.relative_to(data_checkout).as_posix())
+              for dirname in data_dirs:
+                  for item in (data_checkout / dirname).rglob("*"):
+                      if item.is_file():
+                          path = item.relative_to(data_checkout).as_posix()
+                          if include_data_payload(path):
+                              data_files.append(path)
+          else:
+              if data_sha:
+                  data_commit = request_json_or_none(f"{data_api_base}/git/commits/{data_sha}")
+                  if data_commit:
+                      data_root_tree = request_json(data_commit["tree"]["url"])
+                      data_root_entries = {entry["path"]: entry for entry in data_root_tree["tree"]}
+                  else:
+                      data_root_entries = {}
+              else:
+                  data_root_entries = {}
+              if "archive" not in data_root_entries or any(dirname not in data_root_entries for dirname in data_dirs):
+                  detail = "; ".join(data_resolution_errors) if data_resolution_errors else ""
+                  raise SystemExit(
+                      "Companion data repository is not initialized with archive/data at "
+                      f"{data_repo}@{data_ref}; refusing to fall back to product data. {detail}"
+                  )
+              if "archive" not in data_root_entries:
+                  raise SystemExit(f"Missing expected archive path in {data_source_repo}@{data_sha[:12]}")
+              data_missing = [dirname for dirname in data_dirs if dirname not in data_root_entries]
+              data_missing += [path for path in data_root_files if path not in data_root_entries]
+              if data_missing:
+                  raise SystemExit(f"Missing expected data payload paths in {data_source_repo}@{data_sha[:12]}: {', '.join(data_missing)}")
+
+              archive_root = request_json(f"{data_source_api_base}/git/trees/{data_root_entries['archive']['sha']}")
+              archive_entries = {entry["path"]: entry for entry in archive_root["tree"]}
+              missing += [path for path in archive_files + archive_dirs if path.split("/", 1)[1] not in archive_entries]
+              if missing:
+                  raise SystemExit(f"Missing expected Pages payload paths: {', '.join(missing)}")
+
+              data_files = list(archive_files)
+              data_files.extend(data_root_files)
+              for path in optional_archive_files:
+                  if path.split("/", 1)[1] in archive_entries:
+                      data_files.append(path)
+              for dirname in archive_dirs:
+                  entry = archive_entries[dirname.split("/", 1)[1]]
+                  if entry.get("type") != "tree":
+                      raise SystemExit(f"Expected {dirname} to be a tree, got {entry.get('type')}")
+                  subtree = request_json(f"{data_source_api_base}/git/trees/{entry['sha']}?recursive=1")
+                  if subtree.get("truncated"):
+                      raise SystemExit(f"GitHub truncated the {dirname} tree; refusing partial Pages payload")
+                  for item in subtree["tree"]:
+                      if item.get("type") == "blob":
+                          data_files.append(f"{dirname}/{item['path']}")
+
+              for dirname in data_dirs:
+                  entry = data_root_entries[dirname]
+                  if entry.get("type") != "tree":
+                      raise SystemExit(f"Expected {dirname} to be a tree, got {entry.get('type')}")
+                  subtree = request_json(f"{data_source_api_base}/git/trees/{entry['sha']}?recursive=1")
+                  if subtree.get("truncated"):
+                      raise SystemExit(f"GitHub truncated the {dirname} tree; refusing partial Pages payload")
+                  for item in subtree["tree"]:
+                      if item.get("type") == "blob":
+                          path = f"{dirname}/{item['path']}"
+                          if include_data_payload(path):
+                              data_files.append(path)
+
+          for dirname in root_dirs:
+              for item in (source_root / dirname).rglob("*"):
+                  if item.is_file():
+                      files.append(item.relative_to(source_root).as_posix())
+
+          site.mkdir(parents=True, exist_ok=True)
+          print(
+              f"Downloading {len(files)} code files from {repo}@{sha[:12]} "
+              f"and {len(data_files)} data files from {data_source_repo}@{data_sha[:12]}",
+              flush=True,
+          )
+          workers = int(os.environ.get("SFSC_PAGES_DOWNLOAD_WORKERS", "6"))
+          with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+              futures = {pool.submit(copy_local_one, path): path for path in files}
+              if use_local_data:
+                  futures.update({pool.submit(copy_data_one, path): path for path in data_files})
+              else:
+                  futures.update({
+                      pool.submit(download_one, path, data_source_repo, data_sha): path
+                      for path in data_files
+                  })
+              total = len(futures)
+              for idx, future in enumerate(concurrent.futures.as_completed(futures), 1):
+                  path = futures[future]
+                  try:
+                      future.result()
+                  except Exception as exc:
+                      print(f"Failed to download {path}: {exc}", file=sys.stderr)
+                      raise
+                  if idx % 100 == 0 or idx == total:
+                      print(f"Downloaded {idx}/{total} files", flush=True)
+          PY
+          du -sh _site
+          find _site -type f | wc -l
+
+      - name: Build selective judgment search index
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/test_build_judgment_search_index.mjs
+          node --max-old-space-size=4096 scripts/build_judgment_search_index.mjs \
+            --manifest _site/data/judgment-rankings.json \
+            --ranking-dir _data_repo/data/judgment-rankings \
+            --output-dir _site/data/judgment-search
+
+      - name: Materialize verified OCR text from existing release assets
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.SFSC_DATA_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 scripts/test_materialize_pages_ocr.py
+          if [ -s _site/archive/ocr-index.json ]; then
+            python3 scripts/materialize_pages_ocr.py \
+              --index _site/archive/ocr-index.json \
+              --output-dir _site/data/ocr \
+              --workers 6
+          else
+            echo "No OCR index is present in this data snapshot."
+          fi
+
+      - name: Build keyed attorney judgment summaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/test_build_attorney_judgment_profiles.mjs
+          node scripts/build_attorney_judgment_profiles.mjs \
+            --input _site/data/attorney-practice-rankings/all_matters.json \
+            --output-dir _site/data
+
+      - name: Build entity matter-count browse bands
+        shell: bash
+        env:
+          # build_case_tables imports the canonical incremental helper even in
+          # profiles-only mode; keep it coupled to the selected data snapshot.
+          PYTHONPATH: _data_repo/scripts
+        run: |
+          set -euo pipefail
+          python3 -m pip install -c .github/workflows/python-constraints.txt pandas pyarrow
+          if [ ! -s _site/data/entity-profiles-manifest.json ] || ! compgen -G "_site/data/entity-profiles-*.json" >/dev/null; then
+            echo "Required entity profile shards are missing from the data snapshot." >&2
+            exit 1
+          fi
+          python3 scripts/test_entity_case_count_bands.py
+          python3 scripts/build_entity_case_count_bands.py \
+            --data-root _site/data \
+            --out-dir _site/data/entity-case-count-bands
+
+      - name: Build search facet indexes (decreed name, party, attorney)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Build the verified decreed-name picker plus compact entity pickers.
+          # Keyed xref shards keep People links off the full profile corpora.
+          # These browser-facing artifacts are required.
+          node scripts/check_entity_xref_shards.mjs
+          node --max-old-space-size=4096 scripts/index_entity_facets.mjs --site-dir _site --min-count 2
+          # Replace the profile build inputs with bounded route artifacts only
+          # after every other index has consumed the batch files.
+          node scripts/test_entity_profile_route_shards.mjs
+          node --max-old-space-size=4096 scripts/build_entity_profile_route_shards.mjs --data-root _site/data
+          # Replace the 26 MB litigant batch files only after their browse and
+          # xref consumers have finished indexing them.
+          python3 scripts/test_build_litigant_lookup.py
+          python3 scripts/build_litigant_lookup.py --data-root _site/data
+
+      - name: Refresh live stats in slim site
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          from scripts.live_count_metrics import (
+              case_record_metrics,
+              raw_case_index_rows_for_comparison,
+              render_case_records_row,
+          )
+
+          site = Path("_site")
+          start = "<!-- sfsc-live-counts:start -->"
+          end = "<!-- sfsc-live-counts:end -->"
+
+          manifest = json.loads((site / "data" / "manifest.json").read_text(encoding="utf-8"))
+          departments = manifest.get("departments") or []
+          rulings = sum(int(row.get("rulings") or 0) for row in departments)
+          latest = max((row.get("latest") or "") for row in departments)
+
+          case_directory_manifest = json.loads((site / "archive" / "case-directory" / "manifest.json").read_text(encoding="utf-8"))
+          case_directory_source_counts = case_directory_manifest.get("source_counts") or {}
+          case_table_stats_path = site / "data" / "case-table-stats.json"
+          case_table_stats = json.loads(case_table_stats_path.read_text(encoding="utf-8")) if case_table_stats_path.exists() else {}
+          case_directory_json_rows = int(case_directory_source_counts.get("case_json_rows") or 0)
+          case_directory_table_rows = int(case_directory_source_counts.get("case_table_rows") or 0)
+          case_directory_index_rows = int(case_directory_source_counts.get("case_index_rows") or 0)
+          case_directory_source_index_rows = raw_case_index_rows_for_comparison(
+              case_directory_source_counts
+          )
+          case_directory_index_fingerprint = str(case_directory_source_counts.get("case_index_fingerprint") or "").strip()
+          case_directory_table_fingerprint = str(case_directory_source_counts.get("case_table_fingerprint") or "").strip()
+          case_directory_json_fingerprint = str(case_directory_source_counts.get("case_json_fingerprint") or "").strip()
+          # The archive itself (cases-index.ndjson + per-case JSON) is fully
+          # materialized before this step; this step only refreshes the cosmetic
+          # LIVE counts table. The derived case-directory manifest can be a step
+          # behind the deployed case index. Manifest-vs-index drift must NOT
+          # abort the deploy: refusing to publish only freezes the live site at
+          # an even older state and is what stops the page from updating. Treat
+          # drift as a warning and publish the freshest available payload. Only a
+          # genuinely empty directory (which would erase the live browse view)
+          # still blocks.
+          warnings: list[str] = []
+          if max(case_directory_json_rows, case_directory_table_rows) <= 0:
+              raise SystemExit(
+                  "Case directory manifest was built without full JSON rows or compact case-table rows; "
+                  "refusing to deploy a slim site with an empty case directory."
+              )
+          if case_directory_json_rows <= 0 and 0 < case_directory_table_rows < case_directory_index_rows:
+              warnings.append(
+                  f"case directory compact case-table rows ({case_directory_table_rows}) trail the "
+                  f"manifest case-index rows ({case_directory_index_rows}); publishing freshest available payload."
+              )
+          if case_directory_index_fingerprint:
+              if (
+                  case_directory_table_rows > 0
+                  and case_directory_table_rows == case_directory_index_rows
+                  and case_directory_table_fingerprint != case_directory_index_fingerprint
+              ):
+                  warnings.append(
+                      "case directory compact-table fingerprint differs from the case-index fingerprint "
+                      "(manifest a step behind the live index)."
+                  )
+              if (
+                  case_directory_json_rows > 0
+                  and case_directory_json_rows == case_directory_index_rows
+                  and case_directory_json_fingerprint != case_directory_index_fingerprint
+              ):
+                  warnings.append(
+                      "case directory case-JSON fingerprint differs from the case-index fingerprint "
+                      "(manifest a step behind the live index)."
+                  )
+          case_directory_restricted = int(case_directory_manifest.get("restricted_count") or 0)
+          count_metrics = case_record_metrics(case_directory_manifest, case_table_stats)
+          case_records = count_metrics["case_records"]
+          normalized_case_table_subset = count_metrics["normalized_case_table_subset"]
+
+          index_dockets = filings_referenced = docket_entries = 0
+          with (site / "archive" / "cases-index.ndjson").open(encoding="utf-8") as fh:
+              for line in fh:
+                  line = line.strip()
+                  if not line:
+                      continue
+                  row = json.loads(line)
+                  index_dockets += 1
+                  filings_referenced += int(row.get("n_documents") or 0)
+                  docket_entries += int(row.get("n_entries") or 0)
+          if (
+              case_directory_source_index_rows is not None
+              and case_directory_source_index_rows != index_dockets
+          ):
+              warnings.append(
+                  f"case directory manifest raw case-index rows ({case_directory_source_index_rows}) differ "
+                  f"from the deployed cases-index.ndjson ({index_dockets}); the raw index changed after the "
+                  "directory build."
+              )
+          if case_directory_json_rows <= 0 and 0 < case_directory_table_rows < index_dockets:
+              warnings.append(
+                  f"case directory compact case-table rows ({case_directory_table_rows}) trail the deployed "
+                  f"cases-index.ndjson ({index_dockets}); publishing freshest available payload."
+              )
+          docket_entries = max(docket_entries, int(case_table_stats.get("docket_entries") or 0))
+
+          # "Documents indexed" is the docket-referenced document count: every
+          # document row known across all case dockets (max of the case-index
+          # n_documents sum and the compact case-table's document count). It is
+          # distinct from "Documents archived" below, which counts only documents
+          # whose bytes are actually captured. Keep this row in sync with the
+          # committed LIVE.md / README.md produced by update-readme.py.
+          documents_indexed = max(
+              filings_referenced, int(case_table_stats.get("case_documents") or 0)
+          )
+
+          # "Documents archived" counts documents actually captured into the
+          # archive (one byte-object per row in document-index.ndjson), NOT every
+          # document referenced in a docket. Dedupe by court DocID (falling back
+          # to content hash / asset name) so release re-shards never inflate it.
+          # This is the count consistent with the Archive size below.
+          document_bytes = 0
+          documents_archived = 0
+          seen_documents: set[str] = set()
+          document_index = site / "archive" / "document-index.ndjson"
+          if document_index.exists():
+              with document_index.open(encoding="utf-8") as fh:
+                  for line in fh:
+                      line = line.strip()
+                      if not line:
+                          continue
+                      row = json.loads(line)
+                      document_bytes += int(row.get("bytes_len") or row.get("bytes") or 0)
+                      key = (
+                          str(row.get("doc_id") or "").strip()
+                          or str(row.get("sha256") or "").strip()
+                          or str(row.get("asset_name") or "").strip()
+                      )
+                      if key and key in seen_documents:
+                          continue
+                      if key:
+                          seen_documents.add(key)
+                      documents_archived += 1
+
+          archive_mb = round(document_bytes / (1024 * 1024))
+          table = f"""## LIVE
+
+          | Metric | Count |
+          |---|---:|
+          | Tentative rulings | {rulings:,} |
+          {render_case_records_row(case_records)}
+          | Documents indexed | {documents_indexed:,} |
+          | Documents archived | {documents_archived:,} |
+          | Docket entries | {docket_entries:,} |
+          | Archive size | {archive_mb:,} MB |
+          | Latest tentative ruling | {latest} |
+
+          Case records come only from the deployed
+          `archive/case-directory/manifest.json`. `data/case-table-stats.json`
+          supplies normalized document and docket-entry totals, not the
+          case-record headline. Compatibility aggregates come from
+          `archive/cases-index.ndjson` and `archive/document-index.ndjson`.
+          """
+          table = "\n".join(line[10:] if line.startswith("          ") else line for line in table.splitlines()) + "\n"
+          live_block = f"{start}\n{table.rstrip()}\n{end}\n"
+          (site / "LIVE.md").write_text(table, encoding="utf-8")
+
+          readme_path = site / "README.md"
+          if readme_path.exists():
+              readme = readme_path.read_text(encoding="utf-8")
+              a = readme.find(start)
+              b = readme.find(end)
+              if a != -1 and b != -1 and b > a:
+                  readme_path.write_text(
+                      readme[:a] + live_block + "\n" + readme[b + len(end):].lstrip("\n"),
+                      encoding="utf-8",
+                  )
+          for warning in warnings:
+              print(f"::warning::live stats: {warning}")
+          print(
+              f"live stats: {case_records:,} case records, {documents_indexed:,} documents indexed, "
+              f"{documents_archived:,} documents archived, "
+              f"{docket_entries:,} docket entries; compatibility index: "
+              f"{index_dockets:,}; case directory: "
+              f"{case_directory_json_rows:,} full JSON rows, "
+              f"{case_directory_table_rows:,} compact case rows, "
+              f"{case_directory_restricted:,} restricted; normalized case-table subset: "
+              f"{normalized_case_table_subset:,}"
+          )
+          PY
+
+      - name: Trim raw compatibility indices from Pages artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f _site/archive/cases-index.ndjson _site/archive/document-index.ndjson
+          rm -rf _site/archive/case-directory
+          rm -f \
+            _site/data/attorneys.parquet \
+            _site/data/cases.parquet \
+            _site/data/representation.parquet \
+            _site/data/parties.parquet \
+            _site/data/calendar.parquet \
+            _site/data/payments.parquet \
+            _site/data/estate_roles.parquet \
+            _site/data/estate_events.parquet
+          rm -rf _site/data/judgments/parquet _site/data/judgments/shards
+          du -sh _site
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.repository == 'aimesy/sfsc' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Wait for previous Pages deployment
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          run_id = str(os.environ.get("GITHUB_RUN_ID") or "")
+          token = os.environ.get("GITHUB_TOKEN", "")
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "User-Agent": "sfsc-pages-wait",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+          if token:
+              headers["Authorization"] = f"Bearer {token}"
+
+          def request_json(url, attempts=8):
+              for attempt in range(1, attempts + 1):
+                  req = urllib.request.Request(url, headers=headers)
+                  try:
+                      with urllib.request.urlopen(req, timeout=60) as res:
+                          return json.loads(res.read().decode("utf-8"))
+                  except Exception as exc:
+                      if attempt == attempts:
+                          raise
+                      delay = min(2 ** attempt, 60)
+                      if isinstance(exc, urllib.error.HTTPError) and exc.code in (429, 500, 502, 503, 504):
+                          retry_after = exc.headers.get("Retry-After")
+                          try:
+                              delay = max(delay, int(retry_after))
+                          except (TypeError, ValueError):
+                              delay = max(delay, 30)
+                      print(f"GitHub API request failed on attempt {attempt}; retrying in {delay}s: {exc}", flush=True)
+                      time.sleep(delay)
+
+          def active_dynamic_runs():
+              found = []
+              for status in ("queued", "in_progress", "waiting"):
+                  params = urllib.parse.urlencode({
+                      "event": "dynamic",
+                      "status": status,
+                      "per_page": "20",
+                  })
+                  try:
+                      data = request_json(f"https://api.github.com/repos/{repo}/actions/runs?{params}")
+                  except Exception as exc:
+                      print(f"::warning::could not inspect active Pages deployments; continuing: {exc}", flush=True)
+                      return []
+                  for run in data.get("workflow_runs") or []:
+                      if str(run.get("id")) == run_id:
+                          continue
+                      if run.get("name") == "pages build and deployment":
+                          found.append(run)
+              return found
+
+          deadline = time.monotonic() + 900
+          while True:
+              active = active_dynamic_runs()
+              if not active:
+                  print("No active Pages deployment is blocking deploy-pages.")
+                  break
+              summary = ", ".join(
+                  f"{run.get('head_sha', '')[:12]} {run.get('status')}"
+                  for run in active[:5]
+              )
+              print(f"Waiting for active Pages deployment(s): {summary}", flush=True)
+              if time.monotonic() >= deadline:
+                  raise SystemExit("Timed out waiting for previous Pages deployment to finish.")
+              time.sleep(15)
+          PY
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

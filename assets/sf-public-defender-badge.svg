@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 174" role="img" aria-labelledby="title desc">
+  <title id="title">San Francisco Public Defender</title>
+  <desc id="desc">Blue circular symbol from the San Francisco Public Defender wordmark.</desc>
+  <defs>
+    <clipPath id="circle"><circle cx="90" cy="87" r="78"/></clipPath>
+  </defs>
+  <circle cx="90" cy="87" r="78" fill="#53a4d6"/>
+  <g clip-path="url(#circle)" fill="#231f20">
+    <path d="M20 32 75 87 20 142 35 157 105 87 35 17Z"/>
+    <path d="M100 8h26v158h-26z"/>
+  </g>
+</svg>

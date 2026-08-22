@@ -1,0 +1,105 @@
+{
+  "bundle": {
+    "asset": "criminal-charge-title-sources-2026-06-21.zip",
+    "bytes": 16524320,
+    "sha256": "5d455aa64ba26a43119a3e4c5e4ca04bbddb002aa5f65af85c5e6bd93d427833"
+  },
+  "release_asset": "criminal-charge-title-sources-2026-06-21.zip",
+  "release_repo": "aimesy/sfsc",
+  "release_tag": "criminal-charge-title-sources-2026-06-21",
+  "release_url": "https://github.com/aimesy/sfsc/releases/tag/criminal-charge-title-sources-2026-06-21",
+  "schema": "sfsc-criminal-charge-title-sources-v2",
+  "sources": [
+    {
+      "bytes": 7733802,
+      "default_classification": "",
+      "effective_from": "2022-07-01",
+      "effective_to": "2023-06-30",
+      "filename": "sf-2022-2023-bail-schedule.pdf",
+      "id": "sfsuperior-2022-bail-schedule",
+      "jurisdiction": "San Francisco Superior Court",
+      "kind": "pdf_bail_schedule",
+      "label": "San Francisco Superior Court 2022-2023 Felony & Misdemeanor Bail Schedule",
+      "sha256": "ccaf99a046886b2bd84497fd539db951ec4d8b166334ad29b8b43a1eacdc974c",
+      "url": "https://sf.courts.ca.gov/system/files/general/sfsc-bail-schedule.pdf"
+    },
+    {
+      "bytes": 911350,
+      "default_classification": "",
+      "effective_from": "2023-07-01",
+      "effective_to": "2024-06-30",
+      "filename": "sf-2023-2024-bail-schedule.pdf",
+      "id": "sfsuperior-2023-bail-schedule",
+      "jurisdiction": "San Francisco Superior Court",
+      "kind": "pdf_bail_schedule",
+      "label": "San Francisco Superior Court 2023-2024 Felony & Misdemeanor Bail Schedule",
+      "sha256": "2d4a926f263a086b6c32032bc8967f3de7c3a6bec6371d21a5eb5849ae8c5dd7",
+      "url": "https://sf.courts.ca.gov/system/files/bail-bonds/felony-and-misdemeanor-bail-index-and-schedule-effective-070123_1.pdf"
+    },
+    {
+      "bytes": 7380585,
+      "default_classification": "",
+      "effective_from": "2024-07-01",
+      "effective_to": "2025-06-30",
+      "filename": "sf-2024-2025-bail-schedule.pdf",
+      "id": "sfsuperior-2024-bail-schedule",
+      "jurisdiction": "San Francisco Superior Court",
+      "kind": "pdf_bail_schedule",
+      "label": "San Francisco Superior Court 2024-2025 Felony & Misdemeanor Bail Schedule",
+      "sha256": "6b09e24dc4f3b6fd1fec09d4728f66cf62ac39b1fa9e40c640c2b1cf01eb837e",
+      "url": "https://sf.courts.ca.gov/system/files/general/felony-and-misdemeanor-bail-schedule-july-1-2024.pdf"
+    },
+    {
+      "bytes": 990703,
+      "default_classification": "",
+      "effective_from": "2025-07-01",
+      "effective_to": "2026-06-30",
+      "filename": "sf-2025-2026-bail-schedule.pdf",
+      "id": "sfsuperior-2025-bail-schedule",
+      "jurisdiction": "San Francisco Superior Court",
+      "kind": "pdf_bail_schedule",
+      "label": "San Francisco Superior Court 2025-2026 Felony & Misdemeanor Bail Schedule",
+      "sha256": "45461c401bb15860b5d16c351e0c491a835953dfc07be5b4eadb2a3e19839ebe",
+      "url": "https://sf.courts.ca.gov/system/files/bail-bonds/bail-schedule-2025-2026.pdf"
+    },
+    {
+      "bytes": 1395511,
+      "default_classification": "misdemeanor",
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-12-31",
+      "filename": "la-2026-misdemeanor.pdf",
+      "id": "lacourt-2026-misdemeanor",
+      "jurisdiction": "Los Angeles Superior Court",
+      "kind": "pdf_bail_schedule",
+      "label": "Los Angeles Superior Court 2026 Misdemeanor Bail Schedule",
+      "sha256": "f06533487369701b6044290d8e7608f0ab359b926623d6913f2a16977353130f",
+      "url": "https://lascpubstorage.blob.core.windows.net/cpw/LIBOPSCriminal-54-MisdemeanorBailSchedule.pdf"
+    },
+    {
+      "bytes": 1289120,
+      "default_classification": "felony",
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-12-31",
+      "filename": "la-2026-felony.pdf",
+      "id": "lacourt-2026-felony",
+      "jurisdiction": "Los Angeles Superior Court",
+      "kind": "pdf_bail_schedule",
+      "label": "Los Angeles Superior Court 2026 Felony Bail Schedule",
+      "sha256": "9aabff2819d68908467f22ceb722e6cef704f4d91f8bf8dc37630909f4fac5c9",
+      "url": "https://lascpubstorage.blob.core.windows.net/cpw/LIBOPSCriminal-32-FelonyBailSchedule.pdf"
+    },
+    {
+      "bytes": 471040,
+      "default_classification": "",
+      "effective_from": "",
+      "effective_to": "",
+      "filename": "ca-doj-cibrs-offense-listing.xlsx",
+      "id": "ca-doj-cibrs-offense-codes-2026",
+      "jurisdiction": "California Department of Justice",
+      "kind": "xlsx_offense_codes",
+      "label": "California Department of Justice CIBRS Offense Codes",
+      "sha256": "b7fd828f7d133a7302e93085717b4a3ad256f3bf20601b30ffae901037043ece",
+      "url": "https://oag.ca.gov/system/files/media/CIBRS%20Offense%20Listing.xlsx"
+    }
+  ]
+}

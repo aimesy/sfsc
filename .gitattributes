@@ -1,0 +1,2 @@
+data/*_bug_reports.ndjson merge=union
+data/heuristic_bug_reports.ndjson merge=union

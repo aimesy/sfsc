@@ -1,0 +1,284 @@
+{
+  "title": "San Francisco Superior Court alphabetical listing",
+  "source_pdf": "sftc-judges-roster-alpha-public-022024.pdf",
+  "source_pdf_sha256": "1285477ab30783d3f6fc1a708de3f88dfb8a4670b2b6b0f75e3158b6c923063c",
+  "roster_date": "2024-02-20",
+  "distribution": "Public Distribution",
+  "columns": [
+    "department",
+    "judge",
+    "ctroom"
+  ],
+  "entries": [
+    {
+      "department": "8 POLK",
+      "judge": "BEGERT, Michael",
+      "ctroom": "551-3837"
+    },
+    {
+      "department": "403",
+      "judge": "ROECA, Russ",
+      "ctroom": "551-3741"
+    },
+    {
+      "department": "303",
+      "judge": "BOLANOS, Suzanne Ramos",
+      "ctroom": "551-3726"
+    },
+    {
+      "department": "27",
+      "judge": "ROSS, Jeffrey S.",
+      "ctroom": "551-0327"
+    },
+    {
+      "department": "425",
+      "judge": "BREALL, Susan M.",
+      "ctroom": "551-3759"
+    },
+    {
+      "department": "514",
+      "judge": "SANDOVAL, Gerardo C.",
+      "ctroom": "551-3788"
+    },
+    {
+      "department": "10",
+      "judge": "CAFFESE, Teresa M.",
+      "ctroom": "551-0310"
+    },
+    {
+      "department": "304",
+      "judge": "SCHULMAN, Ethan P.",
+      "ctroom": "551-3729"
+    },
+    {
+      "department": "24",
+      "judge": "CHAN, Bruce E.",
+      "ctroom": "551-0324"
+    },
+    {
+      "department": "12",
+      "judge": "THOMPSON, Patrick S.",
+      "ctroom": "551-0312"
+    },
+    {
+      "department": "405 / JJC 2",
+      "judge": "CHAN, Roger C.",
+      "ctroom": "551-3747 / 682-5202"
+    },
+    {
+      "department": "404",
+      "judge": "TONG, Michelle",
+      "ctroom": "551-3744"
+    },
+    {
+      "department": "613",
+      "judge": "CHENG, Andrew Y.S.",
+      "ctroom": "551-3840"
+    },
+    {
+      "department": "302",
+      "judge": "ULMER, JR., Richard B.",
+      "ctroom": "551-3723 / 551-3823"
+    },
+    {
+      "department": "29",
+      "judge": "CHUN, A. Marisa",
+      "ctroom": "551-0329"
+    },
+    {
+      "department": "20",
+      "judge": "VAN AKEN, Christine",
+      "ctroom": "551-0329"
+    },
+    {
+      "department": "23",
+      "judge": "COLFAX, Linda",
+      "ctroom": "551-0323"
+    },
+    {
+      "department": "416",
+      "judge": "WIGHTMAN, Rebecca L. (Comm.)",
+      "ctroom": "551-3756"
+    },
+    {
+      "department": "25",
+      "judge": "CONROY, Brendan",
+      "ctroom": "551-0325"
+    },
+    {
+      "department": "405 / JJC 4",
+      "judge": "WILEY, Monica F.",
+      "ctroom": "551-3747 / 682-5204"
+    },
+    {
+      "department": "608",
+      "judge": "COSTIN, Anne",
+      "ctroom": "551-3833"
+    },
+    {
+      "department": "9",
+      "judge": "WINE, Kenneth",
+      "ctroom": "551-0309"
+    },
+    {
+      "department": "15",
+      "judge": "CROMPTON, Charles",
+      "ctroom": "551-0315"
+    },
+    {
+      "department": "305",
+      "judge": "WISS, Mary E.",
+      "ctroom": "551-3732"
+    },
+    {
+      "department": "JJC 3",
+      "judge": "DARWIN, Richard C.",
+      "ctroom": "682-5203"
+    },
+    {
+      "department": "504",
+      "judge": "WONG, Garrett L.",
+      "ctroom": "551-3772"
+    },
+    {
+      "department": "19",
+      "judge": "DORFMAN, Harry M.",
+      "ctroom": "551-0319"
+    },
+    {
+      "department": "502",
+      "judge": "WOODS, Braden C.",
+      "ctroom": "551-3768"
+    },
+    {
+      "department": "301",
+      "judge": "EAST, Rochelle C. (APJ)",
+      "ctroom": "551-3719"
+    },
+    {
+      "department": "18",
+      "judge": "Visiting Judge",
+      "ctroom": "551-0318"
+    },
+    {
+      "department": "505 / TrafficA",
+      "judge": "EVANGELISTA, Maria E.",
+      "ctroom": "551-3796 / 551-0341"
+    },
+    {
+      "department": "503",
+      "judge": "FENG, Samuel K.",
+      "ctroom": "551-3716"
+    },
+    {
+      "department": "506",
+      "judge": "JUDGE PRO TEM",
+      "ctroom": "551-3785"
+    },
+    {
+      "department": "13",
+      "judge": "FERRALL, Brian L.",
+      "ctroom": "551-0313"
+    },
+    {
+      "department": "610",
+      "judge": "CIVIL CASE MANAGEMENT",
+      "ctroom": "551-3818"
+    },
+    {
+      "department": "22",
+      "judge": "FLEMING, Eric R.",
+      "ctroom": "551-0322"
+    },
+    {
+      "department": "306",
+      "judge": "FLORES, Daniel A.",
+      "ctroom": "551-3846"
+    },
+    {
+      "department": "16",
+      "judge": "FRANKEL, Simon J.",
+      "ctroom": "551-0316"
+    },
+    {
+      "department": "11",
+      "judge": "GOLD, Carolyn",
+      "ctroom": "551-0311"
+    },
+    {
+      "department": "28",
+      "judge": "GORDON, Alexandra Robert",
+      "ctroom": "551-0328"
+    },
+    {
+      "department": "501",
+      "judge": "HAINES, Charles F.",
+      "ctroom": "551-3762"
+    },
+    {
+      "department": "318",
+      "judge": "HITE, Chris",
+      "ctroom": "551-3738"
+    },
+    {
+      "department": "17",
+      "judge": "HWANG, Victor M.",
+      "ctroom": "551-0317"
+    },
+    {
+      "department": "611",
+      "judge": "KARNOW, Curtis E. A.",
+      "ctroom": "551-3849"
+    },
+    {
+      "department": "220",
+      "judge": "KELLY, Kathleen",
+      "ctroom": "551-3771"
+    },
+    {
+      "department": "206",
+      "judge": "MASSULLO, Anne-Christine (PJ)",
+      "ctroom": "551-3705"
+    },
+    {
+      "department": "21",
+      "judge": "McNAUGHTON, Michael",
+      "ctroom": "551-0321"
+    },
+    {
+      "department": "204",
+      "judge": "MOODY, Ross C.",
+      "ctroom": "551-3702"
+    },
+    {
+      "department": "204",
+      "judge": "MURPHY, Stephen M.",
+      "ctroom": "551-3702"
+    },
+    {
+      "department": "406",
+      "judge": "PURI, Vedica",
+      "ctroom": "551-3750"
+    },
+    {
+      "department": "606",
+      "judge": "QUINN, Joseph M.",
+      "ctroom": "551-3830"
+    },
+    {
+      "department": "26",
+      "judge": "RANDLE, Murlene J.",
+      "ctroom": "551-0326"
+    },
+    {
+      "department": "624",
+      "judge": "REARDON, Sharon M.",
+      "ctroom": "551-3735"
+    },
+    {
+      "department": "14",
+      "judge": "RHOADS, Michael",
+      "ctroom": "551-0314"
+    }
+  ]
+}
