@@ -79,6 +79,28 @@ class MaterializePagesOcrTests(unittest.TestCase):
             module.sidecar_url({"sha256": sha, "ocr_json": {"api_url": api_url}}),
             api_url,
         )
+        self.assertEqual(
+            module.sidecar_url(
+                {
+                    "sha256": sha,
+                    "plain_text_url": browser_url,
+                    "ocr_json": {"api_url": api_url},
+                },
+                prefer_api=True,
+            ),
+            api_url,
+        )
+
+    def test_authenticated_shard_uses_asset_api(self) -> None:
+        metadata = {
+            "url": "https://github.com/aimesy/sfsc-data/releases/download/ocr-test/ocr.ndjson",
+            "release_repo": "aimesy/sfsc-data",
+            "asset_id": 123,
+        }
+        self.assertEqual(
+            module.shard_url(metadata, prefer_api=True),
+            "https://api.github.com/repos/aimesy/sfsc-data/releases/assets/123",
+        )
 
     def test_materializes_hash_verified_release_shard_once(self) -> None:
         first_sha = "e" * 64

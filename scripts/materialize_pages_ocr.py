@@ -34,20 +34,35 @@ def clean_sha(value: Any) -> str:
     return sha
 
 
-def sidecar_url(row: dict[str, Any]) -> str:
+def sidecar_url(row: dict[str, Any], *, prefer_api: bool = False) -> str:
     ocr_json = row.get("ocr_json") if isinstance(row.get("ocr_json"), dict) else {}
-    candidates = [
+    browser_candidates = [
         row.get("plain_text_url"),
         row.get("plain_text_ref"),
         ocr_json.get("browser_download_url"),
         ocr_json.get("url"),
+    ]
+    api_candidates = [
         ocr_json.get("api_url"),
     ]
+    candidates = api_candidates + browser_candidates if prefer_api else browser_candidates + api_candidates
     for value in candidates:
         url = str(value or "").strip()
         if PUBLIC_RELEASE_RE.fullmatch(url) or PUBLIC_ASSET_API_RE.fullmatch(url):
             return url
     raise ValueError(f"no public OCR JSON asset URL for {clean_sha(row.get('sha256'))}")
+
+
+def shard_url(metadata: dict[str, Any], *, prefer_api: bool = False) -> str:
+    if prefer_api:
+        repository = str(metadata.get("release_repo") or "").strip()
+        asset_id = metadata.get("asset_id")
+        if re.fullmatch(r"aimesy/(?:sfsc|sfsc-data)", repository) and isinstance(asset_id, int):
+            return f"https://api.github.com/repos/{repository}/releases/assets/{asset_id}"
+    url = str(metadata.get("url") or "").strip()
+    if not PUBLIC_RELEASE_RE.fullmatch(url):
+        raise ValueError("OCR shard has no public release URL")
+    return url
 
 
 def text_shard_key(row: dict[str, Any]) -> str:
@@ -192,7 +207,7 @@ def materialize(
             owner = ("shard", shard_key)
             shard_jobs.setdefault(shard_key, set()).add(sha)
         else:
-            url = sidecar_url(raw)
+            url = sidecar_url(raw, prefer_api=bool(token))
             owner = ("direct", url)
             direct_jobs[sha] = url
         previous = owners.get(sha)
@@ -205,9 +220,7 @@ def materialize(
         metadata = text_shards.get(key)
         if not isinstance(metadata, dict):
             raise ValueError(f"OCR shard metadata is missing for {key}")
-        url = str(metadata.get("url") or "").strip()
-        if not PUBLIC_RELEASE_RE.fullmatch(url):
-            raise ValueError(f"OCR shard has no public release URL: {key}")
+        shard_url(metadata, prefer_api=bool(token))
         shard_metadata[key] = metadata
 
     fetch_one = fetcher or (lambda url: fetch_asset(url, token=token))
@@ -219,7 +232,7 @@ def materialize(
     def run_shard(item: tuple[str, set[str]]) -> tuple[str, dict[str, dict[str, Any]]]:
         key, expected_shas = item
         metadata = shard_metadata[key]
-        payload = fetch_one(str(metadata["url"]))
+        payload = fetch_one(shard_url(metadata, prefer_api=bool(token)))
         return key, validate_shard(payload, metadata, expected_shas)
 
     records: dict[str, dict[str, Any]] = {}
