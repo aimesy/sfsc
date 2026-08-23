@@ -14,6 +14,18 @@ for (const [index, source] of classicInlineScripts.entries()) {
     `classic inline script ${index + 1} should parse`);
 }
 
+const caseNumberNormalizerStart = html.indexOf('  function normalizeCaseNumberInput(value) {');
+const caseNumberNormalizerEnd = html.indexOf('\n\n  const csSafeName', caseNumberNormalizerStart);
+assert.notEqual(caseNumberNormalizerStart, -1, 'case-number input normalizer should exist');
+assert.notEqual(caseNumberNormalizerEnd, -1, 'case-number input normalizer should have a stable boundary');
+const normalizeCaseNumberInput = new Function(
+  `${html.slice(caseNumberNormalizerStart, caseNumberNormalizerEnd)}\nreturn normalizeCaseNumberInput;`,
+)();
+assert.equal(normalizeCaseNumberInput('CGC-23-605428'), 'CGC23605428');
+assert.equal(normalizeCaseNumberInput(' cgc 23 605428 '), 'CGC23605428');
+assert.equal(normalizeCaseNumberInput('CGC_23_605428'), 'CGC23605428');
+assert.equal(normalizeCaseNumberInput('CGC23605428'), 'CGC23605428');
+
 assert.doesNotMatch(html, /PDF\/OCR keys|archived bytes\/OCR|Preview\/OCR/,
   'PDF storage and OCR availability must never be presented as one state');
 assert.doesNotMatch(html, /tentative[-]ruling/i,
@@ -38,6 +50,8 @@ assert.match(html, /const CASE_SEARCH_API = 'https:\/\/sfsc-search\.[^']+\/v1\/c
   'plain case searches should use the indexed endpoint');
 assert.match(html, /caseSearchApiCache\.has\(key\)[\s\S]*?caseSearchApiCache\.set\(key, promise\)/,
   'concurrent identical API searches should share one in-flight request');
+assert.match(html, /async function searchCaseDirectoryApi\(opts = \{\}\)[\s\S]*?looksLikeCaseNumberQuery\(rawQuery\)[\s\S]*?normalizeCaseNumberInput\(rawQuery\)/,
+  'indexed case search should canonicalize dashed case-number queries');
 assert.match(html, /searchCaseDirectoryApi\([\s\S]*?if \(q && !looksLikeCaseNumberQuery\(q\) && !hasYear\)/,
   'an API outage should not restart an unbounded free-text archive scan');
 assert.match(html, /if \(searchEl\.value\.trim\(\)\) await runSearch\(\);[\s\S]*?else if \(!\(await csApplyRoute\(\)\)\)/,
@@ -454,6 +468,7 @@ const compactMatcher = new Function(
   'displayCaseTitle',
   'caseDirectoryDecreedNames',
   'caseSearchOpMatches',
+  'normalizeCaseNumberInput',
   'CASE_COMPACT_SEARCH_FIELDS',
   `${html.slice(compactClauseStart, compactClauseEnd)}
 return { caseDirectoryClauseMatches, caseDirectoryClausesMatch, isCompactCaseSearchClause };`,
@@ -473,6 +488,7 @@ return { caseDirectoryClauseMatches, caseDirectoryClausesMatch, isCompactCaseSea
     }
     return hay.includes(needle);
   },
+  normalizeCaseNumberInput,
   new Set(['case_number', 'title', 'decreed_name']),
 );
 const compactRow = {
@@ -484,6 +500,9 @@ const compactRow = {
 assert.equal(compactMatcher.caseDirectoryClauseMatches(
   compactRow, { field: 'case_number', op: 'exact', value: 'CNC05541927' }), true,
   'standalone Advanced case-number exact search should match a compact row');
+assert.equal(compactMatcher.caseDirectoryClauseMatches(
+  compactRow, { field: 'case_number', op: 'exact', value: 'CNC-05-541927' }), true,
+  'standalone Advanced case-number exact search should accept a dashed number');
 assert.equal(compactMatcher.caseDirectoryClauseMatches(
   compactRow, { field: 'title', op: 'contains', value: 'WONG ENG' }), true,
   'standalone Advanced title search should match a compact row');
@@ -538,6 +557,7 @@ const filterCaseDirectory = new Function(
   'looksLikeCaseNumberQuery',
   'caseDirectoryPrefixFromCase',
   'caseDirectoryYearFromCase',
+  'normalizeCaseNumberInput',
   'loadCaseDirectoryPrefix',
   'loadCaseDirectoryShard',
   'caseIndexMatches',
@@ -551,6 +571,7 @@ return filterCaseDirectory;`,
   directoryFixture,
   () => false,
   () => '',
+  normalizeCaseNumberInput,
   () => '',
   async (entry) => entry,
   async (path) => directoryFixtureShards[path] || [],

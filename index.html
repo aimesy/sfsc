@@ -14454,9 +14454,11 @@ import {
 (() => {
   'use strict';
 
-  // ── Mirror the app's case-number sanitiser EXACTLY (per spec). ───────────
-  const csSafeName = (s) =>
-    String(s).replace(/\.+/g, '_').replace(/[^A-Za-z0-9_-]/g, '_');
+  function normalizeCaseNumberInput(value) {
+    return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  }
+
+  const csSafeName = (s) => normalizeCaseNumberInput(s);
 
   // Archive routes live in their own module, so do not depend on the
   // tentatives-table helpers from the module above.
@@ -15856,7 +15858,7 @@ import {
   }
 
   function caseDirectoryPrefixFromCase(caseNumber) {
-    const text = String(caseNumber || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const text = normalizeCaseNumberInput(caseNumber);
     let m = text.match(/^([A-Z]+)/);
     if (m) return m[1];
     m = text.match(/^\d{2}([A-Z]+)/);
@@ -15864,7 +15866,7 @@ import {
   }
 
   function caseDirectoryYearFromCase(caseNumber) {
-    const text = String(caseNumber || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const text = normalizeCaseNumberInput(caseNumber);
     let m = text.match(/^[A-Z]+(\d{2})/);
     if (!m) m = text.match(/^(\d{2})[A-Z]+/);
     if (!m) return '';
@@ -15899,10 +15901,13 @@ import {
     if (!CASE_COMPACT_SEARCH_FIELDS.has(clause?.field)) return false;
     const op = clause.op || 'contains';
     const values = caseDirectoryFieldValues(row, clause.field);
+    const normalizeCaseNumber = clause.field === 'case_number' && op !== 'regex';
+    const needle = normalizeCaseNumber ? normalizeCaseNumberInput(clause.value) : clause.value;
+    const comparableValues = normalizeCaseNumber ? values.map(normalizeCaseNumberInput) : values;
     if (op === 'not_contains') {
-      return values.every((value) => caseSearchOpMatches(value, op, clause.value));
+      return comparableValues.every((value) => caseSearchOpMatches(value, op, needle));
     }
-    return values.some((value) => caseSearchOpMatches(value, op, clause.value));
+    return comparableValues.some((value) => caseSearchOpMatches(value, op, needle));
   }
 
   function caseDirectoryClausesMatch(row, clauses, join = 'and') {
@@ -15935,7 +15940,7 @@ import {
         && ['contains', 'exact', 'starts'].includes(clause.op || 'contains')
         && looksLikeCaseNumberQuery(clause.value))?.value || rawNeedle)
       : rawNeedle;
-    const normalized = String(caseNumberHint || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const normalized = normalizeCaseNumberInput(caseNumberHint);
     const queryPrefix = looksLikeCaseNumberQuery(caseNumberHint) ? caseDirectoryPrefixFromCase(normalized) : '';
     const queryYear = looksLikeCaseNumberQuery(caseNumberHint) ? caseDirectoryYearFromCase(normalized) : '';
     let prefixEntries = caseDirectory.prefixes || [];
@@ -16005,7 +16010,10 @@ import {
   }
 
   async function searchCaseDirectoryApi(opts = {}) {
-    const query = String(opts.q || '').trim();
+    const rawQuery = String(opts.q || '').trim();
+    const query = looksLikeCaseNumberQuery(rawQuery)
+      ? normalizeCaseNumberInput(rawQuery)
+      : rawQuery;
     if (!query) return null;
     const params = new URLSearchParams({
       q: query,
@@ -16825,16 +16833,16 @@ import {
   }
 
   function caseIndexMatches(row, rawNeedle) {
-    const qNorm = String(rawNeedle || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-    const caseNorm = String(row?.case_number || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-    const criminalNorm = String(row?.criminal_case_number || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const qNorm = normalizeCaseNumberInput(rawNeedle);
+    const caseNorm = normalizeCaseNumberInput(row?.case_number);
+    const criminalNorm = normalizeCaseNumberInput(row?.criminal_case_number);
     if (qNorm && caseNorm && caseNorm.includes(qNorm)) return true;
     if (qNorm && criminalNorm && criminalNorm.includes(qNorm)) return true;
     return caseSearchOpMatches(caseMainSearchText(row), 'contains', rawNeedle);
   }
 
   function looksLikeCaseNumberQuery(value) {
-    const q = String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const q = normalizeCaseNumberInput(value);
     return /^[A-Z]{1,5}\d{2,}/.test(q);
   }
 
@@ -30079,7 +30087,7 @@ import {
   //   #/litigant/<litigant_id>                         a litigant profile
   //   #/attorney/<key>   #/firm/<key>   #/judge/<key>  a profile (key encoded)
   function csEnc(s) { return encodeURIComponent(String(s == null ? '' : s)); }
-  function csCaseRoute(num) { return '#/case/' + csEnc(num); }
+  function csCaseRoute(num) { return '#/case/' + csEnc(normalizeCaseNumberInput(num)); }
   function csRouteState(route) { return { sfscCaseArchive: 'route', route: String(route || '#/cases') }; }
   function csGuardState(route) { return { sfscCaseArchive: 'guard', route: String(route || '#/cases') }; }
   function csAbsoluteRouteUrl(route) {
@@ -30310,7 +30318,7 @@ import {
       };
     }
     if (head === 'case' && seg[1]) {
-      const r = { type: 'case', caseNumber: seg[1], tab: '', docKey: '', view: ['dossier', 'table'].includes(view) ? view : '' };
+      const r = { type: 'case', caseNumber: normalizeCaseNumberInput(seg[1]), tab: '', docKey: '', view: ['dossier', 'table'].includes(view) ? view : '' };
       if (seg[2] === 'document' && seg[3]) r.docKey = seg[3];
       else if (seg[2]) r.tab = seg[2];
       return r;
