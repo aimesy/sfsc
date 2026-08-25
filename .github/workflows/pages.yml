@@ -57,7 +57,7 @@ jobs:
         with:
           token: ${{ secrets.SFSC_DATA_TOKEN }}
           repository: ${{ secrets.SFSC_DATA_REPOSITORY }}
-          ref: ${{ github.event.client_payload.data_sha || github.event.client_payload.data_ref || github.event.inputs.data_ref || 'master' }}
+          ref: ${{ github.event.client_payload.data_ref || github.event.inputs.data_ref || 'master' }}
           path: _data_repo
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -109,6 +109,15 @@ jobs:
             data/fee_schedules/**
             data/litigants/**
             data/ocr-curated/**
+      - name: Check out public case directory
+        uses: actions/checkout@v4
+        with:
+          repository: aimesy/sfsc-data
+          ref: ${{ github.event.client_payload.public_data_sha || github.event.client_payload.data_sha || 'master' }}
+          path: _public_data_repo
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            archive/case-directory/**
       - name: Materialize slim site directory
         shell: bash
         env:
@@ -118,7 +127,7 @@ jobs:
           # product branch tip, not the triggering workflow's original SHA.
           SFSC_PAGES_SOURCE_REF: ${{ github.event_name == 'push' && github.sha || 'master' }}
           SFSC_DATA_REPOSITORY: ${{ secrets.SFSC_DATA_REPOSITORY }}
-          SFSC_DATA_REF: ${{ github.event.client_payload.data_sha || github.event.client_payload.data_ref || github.event.inputs.data_ref || 'master' }}
+          SFSC_DATA_REF: ${{ github.event.client_payload.data_ref || github.event.inputs.data_ref || 'master' }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -466,6 +475,15 @@ jobs:
           PY
           du -sh _site
           find _site -type f | wc -l
+
+      - name: Overlay public case directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f _public_data_repo/archive/case-directory/manifest.json
+          rm -rf _site/archive/case-directory
+          mkdir -p _site/archive
+          cp -a _public_data_repo/archive/case-directory _site/archive/case-directory
 
       - name: Build selective judgment search index
         shell: bash
