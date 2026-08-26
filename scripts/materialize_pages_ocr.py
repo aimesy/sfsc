@@ -109,6 +109,10 @@ def text_shard_key(row: dict[str, Any]) -> str:
     return key
 
 
+def asset_url_candidates(public_url: str, fallback_url: str = "") -> tuple[str, ...]:
+    return tuple(dict.fromkeys(url for url in (public_url, fallback_url) if url))
+
+
 def validate_sidecar(payload: bytes, expected_sha: str) -> dict[str, Any]:
     try:
         value = json.loads(payload.decode("utf-8"))
@@ -229,9 +233,9 @@ def materialize(
     if not isinstance(text_shards, dict):
         raise ValueError("OCR index text_shards must be an object")
 
-    direct_jobs: dict[str, str] = {}
+    direct_jobs: dict[str, tuple[str, ...]] = {}
     shard_jobs: dict[str, set[str]] = {}
-    owners: dict[str, tuple[str, str]] = {}
+    owners: dict[str, tuple[str, Any]] = {}
     for raw in rows:
         if not isinstance(raw, dict):
             raise ValueError("OCR index document row must be an object")
@@ -241,13 +245,15 @@ def materialize(
             owner = ("shard", shard_key)
             shard_jobs.setdefault(shard_key, set()).add(sha)
         else:
-            url = sidecar_url(
+            public_url = sidecar_url(raw)
+            fallback_url = sidecar_url(
                 raw,
-                prefer_api=bool(token),
+                prefer_api=True,
                 repository_aliases=repository_aliases,
-            )
-            owner = ("direct", url)
-            direct_jobs[sha] = url
+            ) if token else ""
+            urls = asset_url_candidates(public_url, fallback_url)
+            owner = ("direct", urls)
+            direct_jobs[sha] = urls
         previous = owners.get(sha)
         if previous and previous != owner:
             raise ValueError(f"conflicting OCR asset locations for {sha}")
@@ -265,20 +271,35 @@ def materialize(
         )
         shard_metadata[key] = metadata
 
-    fetch_one = fetcher or (lambda url: fetch_asset(url, token=token))
+    def fetch_candidates(urls: tuple[str, ...]) -> bytes:
+        for index, url in enumerate(urls):
+            try:
+                if fetcher:
+                    return fetcher(url)
+                api_token = token if url.startswith("https://api.github.com/") else ""
+                return fetch_asset(url, token=api_token)
+            except urllib.error.HTTPError as exc:
+                if exc.code != 404 or index + 1 == len(urls):
+                    raise
+        raise AssertionError("unreachable")
 
-    def run_direct(item: tuple[str, str]) -> tuple[str, dict[str, dict[str, Any]]]:
-        sha, url = item
-        return sha, {sha: validate_sidecar(fetch_one(url), sha)}
+    def run_direct(item: tuple[str, tuple[str, ...]]) -> tuple[str, dict[str, dict[str, Any]]]:
+        sha, urls = item
+        return sha, {sha: validate_sidecar(fetch_candidates(urls), sha)}
 
     def run_shard(item: tuple[str, set[str]]) -> tuple[str, dict[str, dict[str, Any]]]:
         key, expected_shas = item
         metadata = shard_metadata[key]
-        payload = fetch_one(
-            shard_url(
-                metadata,
-                prefer_api=bool(token),
-                repository_aliases=repository_aliases,
+        public_url = shard_url(metadata)
+        fallback_url = shard_url(
+            metadata,
+            prefer_api=True,
+            repository_aliases=repository_aliases,
+        ) if token else ""
+        payload = fetch_candidates(
+            asset_url_candidates(
+                public_url,
+                fallback_url,
             )
         )
         return key, validate_shard(payload, metadata, expected_shas)

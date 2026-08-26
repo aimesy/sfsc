@@ -64,6 +64,63 @@ class MaterializePagesOcrTests(unittest.TestCase):
             written = json.loads((output / f"{sha}.json").read_text(encoding="utf-8"))
             self.assertEqual(written["text"], "verified OCR text")
 
+    def test_authenticated_materialization_uses_public_asset_before_private_fallback(self) -> None:
+        sha = "9" * 64
+        browser_url = f"https://github.com/aimesy/sfsc/releases/download/ocr-test/{sha}.json"
+        api_url = "https://api.github.com/repos/aimesy/sfsc/releases/assets/456"
+        private_api_url = "https://api.github.com/repos/aimesy/sfsc-internal/releases/assets/456"
+        index = {
+            "documents": [{
+                "sha256": sha,
+                "plain_text_url": browser_url,
+                "ocr_json": {"api_url": api_url},
+            }]
+        }
+        sidecar = json.dumps({"sha256": sha, "text": "public OCR"}).encode()
+        fetched = []
+
+        def fetcher(candidate: str) -> bytes:
+            fetched.append(candidate)
+            if candidate == browser_url:
+                return sidecar
+            raise AssertionError(f"unexpected fallback: {candidate}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            index_path = root / "index.json"
+            index_path.write_text(json.dumps(index), encoding="utf-8")
+            module.materialize(
+                index_path,
+                root / "ocr",
+                token="token",
+                repository_aliases={"aimesy/sfsc": "aimesy/sfsc-internal"},
+                fetcher=fetcher,
+            )
+        self.assertEqual(fetched, [browser_url])
+
+        fetched.clear()
+
+        def fallback_fetcher(candidate: str) -> bytes:
+            fetched.append(candidate)
+            if candidate == browser_url:
+                raise urllib.error.HTTPError(candidate, 404, "Not Found", {}, None)
+            if candidate == private_api_url:
+                return sidecar
+            raise AssertionError(f"unexpected URL: {candidate}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            index_path = root / "index.json"
+            index_path.write_text(json.dumps(index), encoding="utf-8")
+            module.materialize(
+                index_path,
+                root / "ocr",
+                token="token",
+                repository_aliases={"aimesy/sfsc": "aimesy/sfsc-internal"},
+                fetcher=fallback_fetcher,
+            )
+        self.assertEqual(fetched, [browser_url, private_api_url])
+
     def test_rejects_identity_only_or_empty_sidecars(self) -> None:
         sha = "b" * 64
         with self.assertRaisesRegex(ValueError, "has no text"):
