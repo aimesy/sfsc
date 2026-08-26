@@ -26,6 +26,9 @@ assert.equal(normalizeCaseNumberInput(' cgc 23 605428 '), 'CGC23605428');
 assert.equal(normalizeCaseNumberInput('CGC_23_605428'), 'CGC23605428');
 assert.equal(normalizeCaseNumberInput('CGC23605428'), 'CGC23605428');
 
+assert.match(html, /const detailRoute = \['case', 'litigant', 'attorney', 'firm', 'judge'\]\.includes\(routeType\);[\s\S]*?selBtn\.hidden = !panelOpen \|\| selectionUnavailable;/,
+  'Select should be hidden on case and profile detail routes');
+
 assert.doesNotMatch(html, /PDF\/OCR keys|archived bytes\/OCR|Preview\/OCR/,
   'PDF storage and OCR availability must never be presented as one state');
 assert.doesNotMatch(html, /tentative[-]ruling/i,

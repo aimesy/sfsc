@@ -18699,12 +18699,15 @@ import {
   function csUpdateSelectionUi() {
     csSelectionEnsureLoaded();
     const panelOpen = panel && !panel.classList.contains('hidden');
+    const routeType = csParseRoute(location.hash)?.type || '';
+    const detailRoute = ['case', 'litigant', 'attorney', 'firm', 'judge'].includes(routeType);
     const profileOpen = !!(currentLitigantRecord || currentAttorneyRecord || currentFirmRecord || currentJudgeRecord);
-    const selecting = selectMode && panelOpen && !profileOpen;
+    const selectionUnavailable = detailRoute || profileOpen;
+    const selecting = selectMode && panelOpen && !selectionUnavailable;
     if (panel) panel.classList.toggle('cs-selecting', !!selecting);
     const n = caseSelection.size;
     if (selBtn) {
-      selBtn.hidden = !panelOpen || profileOpen;
+      selBtn.hidden = !panelOpen || selectionUnavailable;
       selBtn.classList.toggle('active', !!selectMode);
       selBtn.setAttribute('aria-pressed', selectMode ? 'true' : 'false');
       selBtn.textContent = n ? 'Select · ' + n.toLocaleString() : 'Select';
