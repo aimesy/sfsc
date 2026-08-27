@@ -1692,6 +1692,102 @@
     .statistics-loading[hidden] { display: none; }
     .statistics-retry { margin-left: auto; }
     .statistics-retry[hidden] { display: none; }
+    .statistics-dashboard {
+      flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto;
+      padding: 0.85rem 0.85rem 2.8rem; background: var(--plain-soft);
+    }
+    .statistics-dashboard[hidden] { display: none; }
+    .statistics-dashboard-inner { width: min(1500px, 100%); margin: 0 auto; }
+    .statistics-dashboard-header {
+      display: flex; align-items: end; justify-content: space-between;
+      gap: 0.8rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--rule);
+    }
+    .statistics-dashboard-header h2 {
+      margin: 0; font-family: var(--font-serif); font-size: 1.2rem;
+    }
+    .statistics-dashboard-header p,
+    .statistics-dashboard-card header p {
+      margin: 0.2rem 0 0; color: var(--ink-3); font: 0.64rem/1.4 var(--font-mono);
+    }
+    .statistics-dashboard-filter {
+      display: grid; gap: 0.2rem; min-width: min(360px, 100%);
+      color: var(--ink-3); font: 0.62rem var(--font-mono);
+    }
+    .statistics-dashboard-filter select {
+      box-sizing: border-box; width: 100%; height: 30px;
+      border: 1px solid var(--rule); border-radius: 2px;
+      padding: 0.2rem 0.35rem; background: var(--paper); color: var(--ink);
+      font: 0.68rem var(--font-mono);
+    }
+    .statistics-dashboard-metrics {
+      display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+      margin: 0.75rem 0; border-top: 1px solid var(--rule); border-left: 1px solid var(--rule);
+    }
+    .statistics-dashboard-metric {
+      min-width: 0; padding: 0.65rem; border-right: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule); background: var(--paper);
+    }
+    .statistics-dashboard-metric span,
+    .statistics-dashboard-metric small {
+      display: block; color: var(--ink-3); font: 0.6rem/1.35 var(--font-mono);
+    }
+    .statistics-dashboard-metric strong {
+      display: block; margin: 0.12rem 0; color: var(--ink);
+      font: 1.35rem/1.1 var(--font-serif);
+    }
+    .statistics-dashboard-grid {
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem; align-items: start;
+    }
+    .statistics-dashboard-card {
+      min-width: 0; border: 1px solid var(--rule); background: var(--paper);
+    }
+    .statistics-dashboard-card.is-wide { grid-column: 1 / -1; }
+    .statistics-dashboard-card > header {
+      padding: 0.6rem 0.7rem; border-bottom: 1px solid var(--rule-2); background: var(--paper-2);
+    }
+    .statistics-dashboard-card h3 { margin: 0; font: 0.88rem var(--font-serif); }
+    .statistics-dashboard-ranking,
+    .statistics-dashboard-trend { margin: 0; padding: 0; list-style: none; }
+    .statistics-dashboard-ranking {
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0 1.2rem; padding: 0.35rem 0.7rem 0.55rem;
+    }
+    .statistics-dashboard-ranking li { min-width: 0; padding: 0.35rem 0; }
+    .statistics-dashboard-rank-head {
+      display: flex; justify-content: space-between; gap: 0.5rem;
+      font: 0.66rem var(--font-mono);
+    }
+    .statistics-dashboard-rank-head span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .statistics-dashboard-rank-head strong { color: var(--ink); }
+    .statistics-dashboard-track {
+      height: 7px; margin: 0.16rem 0; background: var(--rule-2); border-left: 1px solid var(--ink-3);
+    }
+    .statistics-dashboard-track span { display: block; height: 100%; background: var(--link); }
+    .statistics-dashboard-ranking small { color: var(--ink-3); font: 0.58rem var(--font-mono); }
+    .statistics-dashboard-trend {
+      display: grid; grid-auto-flow: column; grid-auto-columns: minmax(48px, 1fr);
+      gap: 0.3rem; min-height: 235px; padding: 0.7rem; overflow-x: auto;
+    }
+    .statistics-dashboard-trend li {
+      display: grid; grid-template-rows: 1.2rem 170px 1rem; gap: 0.18rem;
+      min-width: 0; color: var(--ink-3); text-align: center; font: 0.58rem var(--font-mono);
+    }
+    .statistics-dashboard-trend-bar {
+      position: relative; display: block; border-bottom: 1px solid var(--ink-3); background: var(--plain-soft);
+    }
+    .statistics-dashboard-trend-bar i {
+      position: absolute; right: 16%; bottom: 0; left: 16%; min-height: 1px;
+      border: 1px solid color-mix(in srgb, var(--link) 75%, var(--ink));
+      border-bottom: 0; background: var(--link);
+    }
+    .statistics-dashboard-method {
+      display: grid; gap: 0.18rem; margin-top: 0.75rem; padding: 0.65rem 0.7rem;
+      border: 1px solid var(--rule); background: var(--paper); color: var(--ink-3);
+      font: 0.61rem/1.4 var(--font-mono);
+    }
+    .statistics-dashboard-method strong { color: var(--ink); }
+    .statistics-dashboard-empty { padding: 0.8rem; color: var(--ink-3); font-style: italic; }
 
     .cs-filter-panel {
       display: grid;
@@ -3804,6 +3900,12 @@
       .statistics-summary { white-space: normal; overflow-wrap: anywhere; }
       .statistics-modebar { padding: 0 0.55rem; }
       .statistics-mode-tab { flex: 1 1 50%; padding-inline: 0.35rem; }
+      .statistics-dashboard { padding: 0.55rem 0.55rem 2.8rem; }
+      .statistics-dashboard-header { align-items: stretch; flex-direction: column; }
+      .statistics-dashboard-filter { min-width: 0; width: 100%; }
+      .statistics-dashboard-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .statistics-dashboard-grid { grid-template-columns: 1fr; }
+      .statistics-dashboard-card.is-wide { grid-column: auto; }
       .statistics-controls {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         padding: 0.5rem 0.55rem;
@@ -5470,9 +5572,13 @@
   <main class="statistics-main">
     <div class="statistics-modebar" role="tablist" aria-label="Statistics mode">
       <button type="button" class="statistics-mode-tab" id="statistics-mode-aggregates" data-statistics-mode="aggregates" role="tab" aria-selected="true">Aggregates</button>
+      <button type="button" class="statistics-mode-tab" id="statistics-mode-dashboard" data-statistics-mode="dashboard" role="tab" aria-selected="false">Dashboard</button>
       <button type="button" class="statistics-mode-tab" id="statistics-mode-rankings" data-statistics-mode="rankings" role="tab" aria-selected="false">Attorney rankings</button>
       <button type="button" class="statistics-mode-tab" id="statistics-mode-judgments" data-statistics-mode="judgments" role="tab" aria-selected="false">Judgment rankings</button>
     </div>
+    <section class="statistics-dashboard" id="statistics-dashboard" aria-label="Statistics dashboard" hidden>
+      <div class="statistics-dashboard-inner" id="statistics-dashboard-content"></div>
+    </section>
     <section class="statistics-controls" aria-label="Statistics controls">
       <label class="statistics-control" id="statistics-dataset-control">Group by
         <input type="text" id="statistics-dataset" list="statistics-dataset-options" value="Case categories" autocomplete="off">
@@ -11615,6 +11721,7 @@ const STATISTICS_DATASETS = Object.freeze({
 });
 const STATISTICS_DEFAULT_STATE = Object.freeze({
   mode: 'aggregates',
+  dashboardNodeId: '',
   dataset: 'case_categories',
   aggregateMeasure: 'Cases',
   rankingTopic: 'all_matters',
@@ -11634,7 +11741,7 @@ const STATISTICS_DEFAULT_STATE = Object.freeze({
   categoryFilter: '',
   categorySelections: {},
 });
-const STATISTICS_MODES = new Set(['aggregates', 'rankings', 'judgments']);
+const STATISTICS_MODES = new Set(['aggregates', 'dashboard', 'rankings', 'judgments']);
 const STATISTICS_RANKING_MEASURES = new Map([
   ['Matters within the last 2 years', 'Matters within the last 2 years'],
   ['Matters', 'Total matter count'],
@@ -11785,10 +11892,13 @@ function statisticsSetState(message, error = false) {
   if (sync) {
     const rankingTab = document.getElementById('statistics-mode-rankings');
     const judgmentTab = document.getElementById('statistics-mode-judgments');
+    const dashboardTab = document.getElementById('statistics-mode-dashboard');
     sync.textContent = error
       ? 'load failed'
       : /^Loading\b/.test(message)
         ? 'loading'
+        : dashboardTab?.getAttribute('aria-selected') === 'true'
+          ? 'dashboard'
         : rankingTab?.getAttribute('aria-selected') === 'true'
           ? 'attorney rankings'
           : judgmentTab?.getAttribute('aria-selected') === 'true'
@@ -11822,6 +11932,7 @@ function statisticsSetBusy(busy, lockControls = busy) {
 }
 
 function statisticsLoadingMessage(state = statisticsControlState) {
+  if (state.mode === 'dashboard') return 'Loading statistics dashboard';
   if (state.mode === 'rankings') return 'Loading attorney rankings';
   if (state.mode === 'judgments') return 'Loading judgment rankings';
   if (statisticsIsCategories(state)) return 'Loading case categories';
@@ -12702,6 +12813,8 @@ async function statisticsLoadCaseCategories() {
     last2YearsStartDate: String(data.last_2_years_start_date || ''),
     last2YearsEndDate: String(data.last_2_years_end_date || ''),
     caseCount: Math.max(0, Math.trunc(Number(data.case_count) || 0)),
+    rootIds: Array.isArray(data.root_ids) ? data.root_ids.map(String).filter(Boolean) : [],
+    methodology: data.methodology || {},
     sourceCommit: String(data.source_commit || ''),
   };
 }
@@ -13043,6 +13156,9 @@ function statisticsSanitizeState(raw) {
   const requestedCategoryNodeId = String(raw?.categoryNodeId || '');
   const categoryNodeId = statisticsTaxonomyNodeMap.has(requestedCategoryNodeId)
     ? requestedCategoryNodeId : '';
+  const requestedDashboardNodeId = String(raw?.dashboardNodeId || '');
+  const dashboardNodeId = statisticsTaxonomyNodeMap.has(requestedDashboardNodeId)
+    ? requestedDashboardNodeId : '';
   const categorySelections = {};
   if (raw?.categorySelections && typeof raw.categorySelections === 'object') {
     for (const topic of statisticsRankingTopics) {
@@ -13056,6 +13172,7 @@ function statisticsSanitizeState(raw) {
   }
   return {
     mode,
+    dashboardNodeId,
     dataset,
     aggregateMeasure,
     rankingTopic,
@@ -13278,6 +13395,13 @@ function statisticsNavigateTaxonomy(nodeId) {
 function statisticsUpdateDataSummary(state = statisticsControlState) {
   const summary = document.getElementById('statistics-data-summary');
   if (!summary) return;
+  if (state.mode === 'dashboard' && statisticsTaxonomyMeta) {
+    const node = statisticsTaxonomyNodeMap.get(state.dashboardNodeId);
+    const asOf = statisticsFormatAsOfDate(statisticsTaxonomyMeta.asOfDate);
+    const cases = Math.max(0, Math.trunc(Number(node?.case_count ?? statisticsTaxonomyMeta.caseCount) || 0));
+    summary.textContent = `${node?.label || 'All archived cases'} · ${cases.toLocaleString()} cases · through ${asOf || 'date unavailable'}`;
+    return;
+  }
   if (statisticsIsCategories(state) && statisticsTaxonomyMeta) {
     const asOf = statisticsFormatAsOfDate(statisticsTaxonomyMeta.asOfDate);
     summary.textContent = `${statisticsTaxonomyRows.length.toLocaleString()} curated categories · ${statisticsTaxonomyMeta.caseCount.toLocaleString()} cases · through ${asOf || 'date unavailable'}`;
@@ -13310,7 +13434,163 @@ function statisticsUpdateDataSummary(state = statisticsControlState) {
   }
 }
 
+function statisticsDashboardPrettyLabel(value) {
+  return String(value || '').replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function statisticsDashboardCompactNumber(value) {
+  return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 })
+    .format(Math.max(0, Number(value) || 0));
+}
+
+function statisticsDashboardCombineRows(nodes, property, key) {
+  const totals = new Map();
+  for (const node of nodes) {
+    for (const row of Array.isArray(node?.[property]) ? node[property] : []) {
+      const value = String(row?.[key] ?? '');
+      if (!value) continue;
+      totals.set(value, (totals.get(value) || 0) + Math.max(0, Number(row?.case_count) || 0));
+    }
+  }
+  return [...totals].map(([value, cases]) => ({ value, cases }));
+}
+
+function statisticsDashboardContext(state = statisticsControlState) {
+  const roots = (statisticsTaxonomyMeta?.rootIds || [])
+    .map((id) => statisticsTaxonomyNodeMap.get(id)).filter(Boolean);
+  const node = statisticsTaxonomyNodeMap.get(state.dashboardNodeId) || null;
+  if (node) {
+    return {
+      node,
+      label: String(node.label || 'Selected category'),
+      cases: Math.max(0, Math.trunc(Number(node.case_count) || 0)),
+      recentCases: Math.max(0, Math.trunc(Number(node.cases_last_2_years) || 0)),
+      filingYears: statisticsDashboardCombineRows([node], 'filings_by_year', 'year'),
+      docketTracks: statisticsDashboardCombineRows([node], 'docket_tracks', 'track'),
+      attributes: statisticsDashboardCombineRows([node], 'attributes', 'attribute'),
+    };
+  }
+  return {
+    node: null,
+    label: 'All archived cases',
+    cases: Math.max(0, Math.trunc(Number(statisticsTaxonomyMeta?.caseCount) || 0)),
+    recentCases: roots.reduce((sum, item) => sum + Math.max(0, Number(item?.cases_last_2_years) || 0), 0),
+    filingYears: statisticsDashboardCombineRows(roots, 'filings_by_year', 'year'),
+    docketTracks: statisticsDashboardCombineRows(roots, 'docket_tracks', 'track'),
+    attributes: statisticsDashboardCombineRows(roots, 'attributes', 'attribute'),
+  };
+}
+
+function statisticsDashboardMetric(label, value, note) {
+  const exact = Math.max(0, Number(value) || 0).toLocaleString();
+  return `<article class="statistics-dashboard-metric"><span>${escapeHtml(label)}</span>`
+    + `<strong title="${escapeHtml(exact)}">${escapeHtml(statisticsDashboardCompactNumber(value))}</strong>`
+    + `<small>${escapeHtml(note)}</small></article>`;
+}
+
+function statisticsDashboardRanking(title, subtitle, rows, cases, wide = false) {
+  const sorted = [...rows].sort((left, right) => right.cases - left.cases || left.value.localeCompare(right.value)).slice(0, 12);
+  const maximum = Math.max(1, ...sorted.map((row) => row.cases));
+  const items = sorted.map((row) => {
+    const share = cases ? (100 * row.cases / cases) : 0;
+    const width = 100 * row.cases / maximum;
+    return `<li><div class="statistics-dashboard-rank-head"><span title="${escapeHtml(row.value)}">${escapeHtml(statisticsDashboardPrettyLabel(row.value))}</span>`
+      + `<strong>${escapeHtml(row.cases.toLocaleString())}</strong></div>`
+      + `<div class="statistics-dashboard-track"><span style="width:${width.toFixed(3)}%"></span></div>`
+      + `<small>${share.toFixed(1)}% of selected cases</small></li>`;
+  }).join('');
+  return `<section class="statistics-dashboard-card${wide ? ' is-wide' : ''}"><header><h3>${escapeHtml(title)}</h3>`
+    + `<p>${escapeHtml(subtitle)}</p></header><ol class="statistics-dashboard-ranking">`
+    + (items || '<li class="statistics-dashboard-empty">No values published for this selection.</li>')
+    + '</ol></section>';
+}
+
+function statisticsDashboardTrend(rows, cases) {
+  const sorted = [...rows].filter((row) => /^\d{4}$/.test(row.value)).sort((left, right) => Number(left.value) - Number(right.value));
+  const maximum = Math.max(1, ...sorted.map((row) => row.cases));
+  const items = sorted.map((row) => `<li aria-label="${escapeHtml(row.value)}: ${escapeHtml(row.cases.toLocaleString())} cases">`
+    + `<span>${escapeHtml(statisticsDashboardCompactNumber(row.cases))}</span>`
+    + `<span class="statistics-dashboard-trend-bar"><i style="height:${(100 * row.cases / maximum).toFixed(3)}%"></i></span>`
+    + `<span>${escapeHtml(row.value)}</span></li>`).join('');
+  return `<section class="statistics-dashboard-card is-wide"><header><h3>Cases filed by year</h3>`
+    + `<p>${escapeHtml(cases.toLocaleString())} selected cases; bars start at zero.</p></header>`
+    + `<ol class="statistics-dashboard-trend">${items || '<li class="statistics-dashboard-empty">No filing years published.</li>'}</ol></section>`;
+}
+
+function statisticsDashboardCategoryRows(context) {
+  if (!context.node) {
+    return (statisticsTaxonomyMeta?.rootIds || []).map((id) => statisticsTaxonomyNodeMap.get(id))
+      .filter(Boolean).map((item) => ({ value: String(item.label || ''), cases: Math.max(0, Number(item.case_count) || 0) }));
+  }
+  const childIds = statisticsTaxonomyChildren.get(String(context.node.id || '')) || [];
+  if (childIds.length) {
+    return childIds.map((id) => statisticsTaxonomyNodeMap.get(id)).filter(Boolean)
+      .map((item) => ({ value: String(item.label || ''), cases: Math.max(0, Number(item.case_count) || 0) }));
+  }
+  return (statisticsTaxonomyClerkChildren.get(String(context.node.id || '')) || [])
+    .map((item) => ({ value: String(item.label || ''), cases: Math.max(0, Number(item.case_count) || 0) }));
+}
+
+function statisticsDashboardCategoryOptions(selectedId) {
+  const roots = new Set(statisticsTaxonomyMeta?.rootIds || []);
+  const options = ['<option value="">All archived cases</option>'];
+  for (const node of statisticsTaxonomyNodeMap.values()) {
+    const id = String(node?.id || '');
+    if (!id) continue;
+    const depth = Math.max(0, statisticsTaxonomyPath(id).length - 1);
+    const prefix = roots.has(id) ? '' : `${'— '.repeat(Math.min(depth, 4))}`;
+    options.push(`<option value="${escapeHtml(id)}"${id === selectedId ? ' selected' : ''}>${escapeHtml(prefix + String(node.label || id))}</option>`);
+  }
+  return options.join('');
+}
+
+function statisticsRenderDashboard(state = statisticsControlState) {
+  const content = document.getElementById('statistics-dashboard-content');
+  if (!content || !statisticsTaxonomyMeta) return;
+  const context = statisticsDashboardContext(state);
+  const categoryRows = statisticsDashboardCategoryRows(context);
+  const allMatters = statisticsRankingTopics.find((topic) => topic.key === 'all_matters') || statisticsRankingTopics[0];
+  const rankedAttorneys = Math.max(0, Number(allMatters?.matchedAttorneyCount || allMatters?.rankedAttorneyCount) || 0);
+  const directCategoryCount = categoryRows.length;
+  const clerkCount = context.node
+    ? Math.max(0, Number(context.node.clerk_category_count) || 0)
+    : statisticsTaxonomyClerkRows.length;
+  const recentWindow = statisticsFormatAsOfDate(statisticsTaxonomyMeta.last2YearsStartDate);
+  const asOf = statisticsFormatAsOfDate(statisticsTaxonomyMeta.asOfDate);
+  const methods = statisticsTaxonomyMeta.methodology || {};
+  content.innerHTML = `<header class="statistics-dashboard-header"><div><h2>Archive statistics</h2>`
+    + `<p>Published SFSC corpus at the one-case grain. The category filter applies to every category-based metric and chart.</p></div>`
+    + `<label class="statistics-dashboard-filter">Case category<select id="statistics-dashboard-category">${statisticsDashboardCategoryOptions(state.dashboardNodeId)}</select></label></header>`
+    + `<section class="statistics-dashboard-metrics" aria-label="Headline archive metrics">`
+    + statisticsDashboardMetric('Cases', context.cases, 'distinct archived matters')
+    + statisticsDashboardMetric('Last 2 years', context.recentCases, `filed since ${recentWindow || 'published cutoff'}`)
+    + statisticsDashboardMetric('Category branches', directCategoryCount, context.node ? 'direct children shown below' : 'top-level court domains')
+    + statisticsDashboardMetric('Clerk categories', clerkCount, context.node ? 'mapped beneath this branch' : 'verbatim source categories')
+    + statisticsDashboardMetric('Ranked attorneys', rankedAttorneys, 'all-matters ranking coverage')
+    + statisticsDashboardMetric('Monetary judgments', statisticsJudgmentMeta?.publishedCount || 0, 'qualified explicit totals')
+    + `</section><div class="statistics-dashboard-grid">`
+    + statisticsDashboardTrend(context.filingYears, context.cases)
+    + statisticsDashboardRanking(context.node ? 'Category mix' : 'Court domain mix', context.node ? 'Direct taxonomy children, or exact clerk categories at a leaf.' : 'Mutually exclusive top-level case categories.', categoryRows, context.cases, true)
+    + statisticsDashboardRanking('Docket track', 'Case-number-based court tracks within the selected category.', context.docketTracks, context.cases)
+    + statisticsDashboardRanking('Matter attributes', 'Nonexclusive procedural, remedy, and matter attributes; totals are not additive.', context.attributes, context.cases)
+    + `</div><footer class="statistics-dashboard-method"><strong>Source and definitions</strong>`
+    + `<span>Published through ${escapeHtml(asOf || 'date unavailable')} from the versioned SFSC case-category, attorney-ranking, and judgment-ranking contracts.</span>`
+    + `<span>Cases: ${escapeHtml(String(methods.matter_unit || 'distinct nonblank case number'))}. Primary category: ${escapeHtml(String(methods.primary_assignment || 'one mutually exclusive assignment per case'))}.</span>`
+    + `<span>Attorney and judgment headline counts are archive-wide ranking coverage and do not change with the category filter.</span></footer>`;
+  document.getElementById('statistics-dashboard-category')?.addEventListener('change', (event) => {
+    statisticsControlState = statisticsSanitizeState({
+      ...statisticsControlState,
+      dashboardNodeId: event.currentTarget.value,
+    });
+    statisticsSaveControlState();
+    statisticsRenderDashboard(statisticsControlState);
+    statisticsUpdateDataSummary(statisticsControlState);
+    statisticsSetState(`${statisticsDashboardContext(statisticsControlState).label} dashboard`);
+  });
+}
+
 function statisticsSyncControls(state = statisticsControlState) {
+  const isDashboard = state.mode === 'dashboard';
   const isRankings = state.mode === 'rankings';
   const isJudgments = state.mode === 'judgments';
   const isCategories = statisticsIsCategories(state);
@@ -13318,7 +13598,16 @@ function statisticsSyncControls(state = statisticsControlState) {
     tab.setAttribute('aria-selected', String(tab.dataset.statisticsMode === state.mode));
   });
   const controls = document.querySelector('.statistics-controls');
-  if (controls) controls.dataset.mode = isCategories ? 'categories' : state.mode;
+  if (controls) {
+    controls.dataset.mode = isCategories ? 'categories' : state.mode;
+    controls.hidden = isDashboard;
+  }
+  const dashboard = document.getElementById('statistics-dashboard');
+  const toolbar = document.querySelector('.statistics-toolbar');
+  const viewerShell = document.querySelector('.statistics-viewer-shell');
+  if (dashboard) dashboard.hidden = !isDashboard;
+  if (toolbar) toolbar.hidden = isDashboard;
+  if (viewerShell) viewerShell.hidden = isDashboard;
   document.getElementById('statistics-dataset-control').hidden = isRankings || isJudgments;
   document.getElementById('statistics-topic-control').hidden = !isRankings;
   document.getElementById('statistics-dataset').value = (
@@ -13351,6 +13640,13 @@ function statisticsSyncControls(state = statisticsControlState) {
       : 'Category contains';
   statisticsRenderCategoryPanel(state);
   statisticsRenderTaxonomyPath(state);
+  const categories = document.getElementById('statistics-categories');
+  const categoryPath = document.getElementById('statistics-category-path');
+  if (isDashboard) {
+    if (categories) categories.hidden = true;
+    if (categoryPath) categoryPath.hidden = true;
+    statisticsRenderDashboard(state);
+  }
   statisticsUpdateDataSummary(state);
   statisticsRefreshComboboxes();
 }
@@ -13981,6 +14277,14 @@ async function statisticsApplyControls(applyGeneration = statisticsApplyGenerati
   statisticsControlState = statisticsReadControls();
   statisticsUpdateMeasureOptions(statisticsControlState);
   statisticsSaveControlState();
+
+  if (statisticsControlState.mode === 'dashboard') {
+    statisticsRenderDashboard(statisticsControlState);
+    if (applyGeneration !== statisticsApplyGeneration) return;
+    statisticsSetState(`${statisticsDashboardContext(statisticsControlState).label} dashboard`);
+    statisticsUpdateDataSummary(statisticsControlState);
+    return;
+  }
 
   const selectedTopic = statisticsTopicForState(statisticsControlState);
   if (statisticsControlState.mode === 'rankings'

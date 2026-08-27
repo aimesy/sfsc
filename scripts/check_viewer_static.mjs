@@ -1253,8 +1253,16 @@ assert.match(html, /id="statistics-dataset"[\s\S]*?id="statistics-measure"[\s\S]
   'Statistics should expose concrete dropdown and type-in controls');
 assert.match(html, /id="statistics-dataset" list="statistics-dataset-options"[\s\S]*?value="Case categories"[\s\S]*?value="Case type"/,
   'Case categories should be the first and default Group by option');
-assert.match(html, /data-statistics-mode="aggregates"[\s\S]*?data-statistics-mode="rankings"[\s\S]*?data-statistics-mode="judgments"/,
-  'Statistics should expose aggregate, attorney-ranking, and judgment-ranking modes');
+assert.match(html, /data-statistics-mode="aggregates"[\s\S]*?data-statistics-mode="dashboard"[\s\S]*?data-statistics-mode="rankings"[\s\S]*?data-statistics-mode="judgments"/,
+  'Statistics should place the dashboard immediately after Aggregates and preserve both ranking modes');
+assert.match(html, /id="statistics-dashboard"[\s\S]*?id="statistics-dashboard-content"/,
+  'Statistics should expose a dedicated dashboard surface');
+assert.match(html, /Cases filed by year[\s\S]*?function statisticsRenderDashboard\(state = statisticsControlState\)[\s\S]*?Ranked attorneys[\s\S]*?Monetary judgments/,
+  'the dashboard should render filing history and ranking-backed headline coverage');
+assert.match(html, /function statisticsDashboardContext[\s\S]*?filings_by_year[\s\S]*?docket_tracks[\s\S]*?attributes/,
+  'the dashboard category filter should drive filing, docket-track, and attribute charts');
+assert.match(html, /const STATISTICS_MODES = new Set\(\['aggregates', 'dashboard', 'rankings', 'judgments'\]\)/,
+  'dashboard should be a persisted first-class Statistics mode');
 assert.doesNotMatch(html, /data-statistics-mode="categories"/,
   'Case categories should be selected from Group by rather than exposed as a separate mode');
 for (const [control, options] of [
