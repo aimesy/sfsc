@@ -13590,6 +13590,10 @@ function statisticsRenderDashboard(state = statisticsControlState) {
     statisticsUpdateDataSummary(statisticsControlState);
     statisticsSetState(`${statisticsDashboardContext(statisticsControlState).label} dashboard`);
   });
+  requestAnimationFrame(() => {
+    const trend = content.querySelector('.statistics-dashboard-trend');
+    if (trend) trend.scrollLeft = trend.scrollWidth;
+  });
 }
 
 function statisticsSyncControls(state = statisticsControlState) {

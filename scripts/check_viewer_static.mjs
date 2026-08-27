@@ -1263,6 +1263,8 @@ assert.match(html, /Cases filed by year[\s\S]*?function statisticsRenderDashboar
   'the dashboard should render filing history and ranking-backed headline coverage');
 assert.match(html, /function statisticsDashboardContext[\s\S]*?filings_by_year[\s\S]*?docket_tracks[\s\S]*?attributes/,
   'the dashboard category filter should drive filing, docket-track, and attribute charts');
+assert.match(html, /content\.querySelector\('\.statistics-dashboard-trend'\)[\s\S]*?trend\.scrollLeft = trend\.scrollWidth/,
+  'the filing chart should open on the most recent years without discarding full history');
 assert.match(html, /const STATISTICS_MODES = new Set\(\['aggregates', 'dashboard', 'rankings', 'judgments'\]\)/,
   'dashboard should be a persisted first-class Statistics mode');
 assert.doesNotMatch(html, /data-statistics-mode="categories"/,
