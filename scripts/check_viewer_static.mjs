@@ -1257,6 +1257,8 @@ assert.match(html, /data-statistics-mode="aggregates"[\s\S]*?data-statistics-mod
   'Statistics should place the dashboard immediately after Aggregates and preserve both ranking modes');
 assert.match(html, /id="statistics-dashboard"[\s\S]*?id="statistics-dashboard-content"/,
   'Statistics should expose a dedicated dashboard surface');
+assert.match(html, /\.statistics-controls\[hidden\],[\s\S]*?\.statistics-toolbar\[hidden\],[\s\S]*?\.statistics-viewer-shell\[hidden\] \{ display: none; \}/,
+  'dashboard mode must visibly remove the aggregate controls and Perspective shell');
 assert.match(html, /Cases filed by year[\s\S]*?function statisticsRenderDashboard\(state = statisticsControlState\)[\s\S]*?Ranked attorneys[\s\S]*?Monetary judgments/,
   'the dashboard should render filing history and ranking-backed headline coverage');
 assert.match(html, /function statisticsDashboardContext[\s\S]*?filings_by_year[\s\S]*?docket_tracks[\s\S]*?attributes/,
