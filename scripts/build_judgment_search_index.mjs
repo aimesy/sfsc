@@ -14,6 +14,7 @@ export const DETAIL_COLUMNS = Object.freeze([
   'attorney_names', 'attorneys_truncated', 'principal_amount', 'interest_amount',
   'costs_amount', 'fees_amount', 'reimbursement_amount', 'sanctions_amount',
   'damages_amount', 'restoration_amount',
+  'matter_type', 'matter_type_key', 'matter_category', 'matter_category_key',
 ]);
 
 export function normalizeSearchText(value) {

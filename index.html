@@ -5574,8 +5574,8 @@
   </div>
   <main class="statistics-main">
     <div class="statistics-modebar" role="tablist" aria-label="Statistics mode">
-      <button type="button" class="statistics-mode-tab" id="statistics-mode-aggregates" data-statistics-mode="aggregates" role="tab" aria-selected="true">Aggregates</button>
       <button type="button" class="statistics-mode-tab" id="statistics-mode-dashboard" data-statistics-mode="dashboard" role="tab" aria-selected="false">Dashboard</button>
+      <button type="button" class="statistics-mode-tab" id="statistics-mode-aggregates" data-statistics-mode="aggregates" role="tab" aria-selected="true">Aggregates</button>
       <button type="button" class="statistics-mode-tab" id="statistics-mode-rankings" data-statistics-mode="rankings" role="tab" aria-selected="false">Attorney rankings</button>
       <button type="button" class="statistics-mode-tab" id="statistics-mode-judgments" data-statistics-mode="judgments" role="tab" aria-selected="false">Judgment rankings</button>
     </div>
@@ -5597,6 +5597,14 @@
       <label class="statistics-control" id="statistics-topic-control" hidden>Matter type
         <input type="text" id="statistics-topic" list="statistics-topic-options" placeholder="Type or choose a matter type" autocomplete="off">
         <datalist id="statistics-topic-options"></datalist>
+      </label>
+      <label class="statistics-control" id="statistics-judgment-matter-type-control" hidden>Matter type
+        <input type="text" id="statistics-judgment-matter-type" list="statistics-judgment-matter-type-options" placeholder="All matter types" autocomplete="off">
+        <datalist id="statistics-judgment-matter-type-options"></datalist>
+      </label>
+      <label class="statistics-control" id="statistics-judgment-matter-category-control" hidden>Matter category
+        <input type="text" id="statistics-judgment-matter-category" list="statistics-judgment-matter-category-options" placeholder="All matter categories" autocomplete="off">
+        <datalist id="statistics-judgment-matter-category-options"></datalist>
       </label>
       <label class="statistics-control">Measure
         <input type="text" id="statistics-measure" list="statistics-measure-options" autocomplete="off">
@@ -11673,6 +11681,7 @@ const STATISTICS_PERSPECTIVE_VERSION = '5.1.0';
 const STATISTICS_TABLE_NAME = 'sfsc_statistics';
 const STATISTICS_RANKINGS_URL = 'data/attorney-practice-rankings.json';
 const STATISTICS_JUDGMENTS_URL = 'data/judgment-rankings.json';
+const STATISTICS_JUDGMENT_MATTER_FACETS_URL = 'data/judgment-matter-facets.json';
 const STATISTICS_JUDGMENT_SEARCH_URL = 'data/judgment-search/manifest.json';
 const STATISTICS_CASE_CATEGORIES_URL = 'data/case-category-statistics.json';
 const STATISTICS_DATA_RAW_BASE = 'https://raw.githubusercontent.com/aimesy/sfsc-data/master/';
@@ -11692,6 +11701,7 @@ const STATISTICS_TABLE_SCHEMA = Object.freeze({
   'Total judgments ($)': 'float', 'Judgment count': 'integer',
   'Largest judgment ($)': 'float',
   'Case number': 'string', 'Case profile': 'string', 'Case title': 'string',
+  'Matter category key': 'string', 'Matter category': 'string',
   'Judgment amount ($)': 'float', 'Judgment date': 'string', 'Judgment kind': 'string',
   'Principal ($)': 'float', 'Interest ($)': 'float', 'Costs ($)': 'float',
   'Attorney fees ($)': 'float', 'Other reported components': 'string',
@@ -11730,6 +11740,8 @@ const STATISTICS_DEFAULT_STATE = Object.freeze({
   rankingTopic: 'all_matters',
   rankingMeasure: 'Matters within the last 2 years',
   judgmentMeasure: 'Judgment amount ($)',
+  judgmentMatterType: '',
+  judgmentMatterCategory: '',
   categoryNodeId: '',
   categoryMeasure: 'Cases',
   view: 'Datagrid',
@@ -11805,6 +11817,7 @@ const STATISTICS_RANKING_EXPORT_COLUMNS = Object.freeze([
 ]);
 const STATISTICS_JUDGMENT_COLUMNS = Object.freeze([
   '#', 'Case number', 'Case title', 'Judgment amount ($)', 'Judgment date',
+  'Matter type', 'Matter category',
   'Principal ($)', 'Interest ($)', 'Costs ($)', 'Attorney fees ($)',
   'Other reported components', 'Satisfaction', 'Attorneys',
 ]);
@@ -11837,6 +11850,7 @@ let statisticsAggregateMeta = null;
 let statisticsRankingMeta = null;
 let statisticsJudgmentRows = [];
 let statisticsJudgmentMeta = null;
+let statisticsJudgmentMatterFacets = new Map();
 let statisticsJudgmentAllPromise = null;
 let statisticsJudgmentsFullyLoaded = false;
 let statisticsJudgmentBootstrapRows = [];
@@ -12245,11 +12259,16 @@ function statisticsNormalizeJudgment(row, fallbackRank) {
     .map((attorney) => String(attorney?.attorney_name || '').trim())
     .filter(Boolean);
   if (row?.attorneys_truncated) attorneys.push(`+${Math.max(0, Number(row?.attorney_count) - attorneys.length)} more`);
+  const publishedFacet = statisticsJudgmentMatterFacets.get(caseNumber.replace(/[^A-Z0-9]/g, '')) || {};
   return {
     '#': Math.max(1, Math.trunc(Number(row?.rank) || fallbackRank)),
     'Case number': caseNumber,
     'Case profile': String(row?.case_profile_path || `#/case/${encodeURIComponent(caseNumber)}`),
     'Case title': String(row?.case_title || ''),
+    'Matter type': String(row?.matter_type || publishedFacet.matterType || 'Unclassified'),
+    'Matter type key': String(row?.matter_type_key || publishedFacet.matterTypeKey || 'unclassified'),
+    'Matter category': String(row?.matter_category || publishedFacet.matterCategory || 'Unknown'),
+    'Matter category key': String(row?.matter_category_key || publishedFacet.matterCategoryKey || 'unclassified:unknown'),
     'Judgment amount ($)': amount,
     'Judgment date': String(row?.judgment_date || ''),
     'Judgment kind': String(row?.judgment_kind || '').replaceAll('_', ' '),
@@ -12264,10 +12283,27 @@ function statisticsNormalizeJudgment(row, fallbackRank) {
 }
 
 async function statisticsLoadJudgmentRows() {
-  const data = await statisticsFetchJson(STATISTICS_JUDGMENTS_URL);
+  const [data, facetData] = await Promise.all([
+    statisticsFetchJson(STATISTICS_JUDGMENTS_URL),
+    statisticsFetchJson(STATISTICS_JUDGMENT_MATTER_FACETS_URL),
+  ]);
   if (Number(data?.schema_version) < 3 || !Array.isArray(data?.rankings)
       || !Array.isArray(data?.ranking_shards)) {
     throw new Error('Judgment ranking data has an unsupported schema.');
+  }
+  if (Number(facetData?.schema_version) !== 1 || !Array.isArray(facetData?.facet_groups)
+      || String(facetData?.source_commit || '') !== String(data?.source_commit || '')) {
+    throw new Error('Judgment matter filters do not match the published rankings.');
+  }
+  statisticsJudgmentMatterFacets = new Map();
+  for (const values of facetData.facet_groups) {
+    const facet = {
+      matterTypeKey: String(values?.[0] || ''), matterType: String(values?.[1] || ''),
+      matterCategoryKey: String(values?.[2] || ''), matterCategory: String(values?.[3] || ''),
+    };
+    for (const caseNumber of String(values?.[4] || '').split(',')) {
+      if (caseNumber) statisticsJudgmentMatterFacets.set(caseNumber, facet);
+    }
   }
   const rows = data.rankings
     .map((row, index) => statisticsNormalizeJudgment(row, index + 1))
@@ -12279,6 +12315,15 @@ async function statisticsLoadJudgmentRows() {
     eligibleCount: Math.max(0, Math.trunc(Number(data?.eligible_judgment_count) || 0)),
     publishedCount: Math.max(0, Math.trunc(Number(data?.published_judgment_count) || 0)),
     bootstrapCount: rows.length,
+    matterTypes: (data.matter_types || []).map((item) => ({
+      key: String(item?.key || ''), label: String(item?.label || ''),
+      judgmentCount: Math.max(0, Math.trunc(Number(item?.judgment_count) || 0)),
+    })).filter((item) => item.key && item.label),
+    matterCategories: (data.matter_categories || []).map((item) => ({
+      key: String(item?.key || ''), label: String(item?.label || ''),
+      matterType: String(item?.matter_type || ''),
+      judgmentCount: Math.max(0, Math.trunc(Number(item?.judgment_count) || 0)),
+    })).filter((item) => item.key && item.label),
     rankingShards: data.ranking_shards.map((entry) => ({
       path: String(entry?.path || ''),
       startIndex: Math.max(1, Math.trunc(Number(entry?.start_index) || 1)),
@@ -12294,6 +12339,8 @@ function statisticsJudgmentRequiresFullScan(state = statisticsControlState) {
     state.view !== 'Datagrid'
     || state.sort === 'name_asc'
     || state.sort === 'name_desc'
+    || state.judgmentMatterType
+    || state.judgmentMatterCategory
   ) && !state.judgmentFilter;
 }
 
@@ -13073,6 +13120,7 @@ function statisticsInitializeCombobox(inputId) {
 function statisticsInitializeComboboxes() {
   [
     'statistics-dataset', 'statistics-topic', 'statistics-measure',
+    'statistics-judgment-matter-type', 'statistics-judgment-matter-category',
     'statistics-view', 'statistics-sort', 'statistics-limit',
   ].forEach(statisticsInitializeCombobox);
   if (statisticsComboboxDocumentWired) return;
@@ -13092,6 +13140,42 @@ function statisticsOptionFromInput(options, input, fallback) {
     }
   }
   return fallback;
+}
+
+function statisticsJudgmentFacetFromInput(items, input, fallback = '') {
+  const requested = String(input || '').trim().toLowerCase();
+  if (!requested) return '';
+  const item = items.find((entry) => (
+    entry.key.toLowerCase() === requested || entry.label.toLowerCase() === requested
+  ));
+  return item ? item.key : fallback;
+}
+
+function statisticsUpdateJudgmentFacetOptions(state = statisticsControlState) {
+  const publishedTypes = statisticsJudgmentMeta?.matterTypes || [];
+  const publishedCategories = (statisticsJudgmentMeta?.matterCategories || []).filter((item) => (
+    !state.judgmentMatterType || item.matterType === state.judgmentMatterType
+  ));
+  const replace = (id, items) => {
+    const datalist = document.getElementById(id);
+    if (!datalist) return;
+    datalist.replaceChildren(...items.map((item) => {
+      const option = document.createElement('option');
+      option.value = item.label;
+      option.label = `${item.label} (${item.judgmentCount.toLocaleString()})`;
+      return option;
+    }));
+  };
+  const types = [{ key: '', label: 'All matter types', judgmentCount: statisticsJudgmentMeta?.publishedCount || 0 }, ...publishedTypes];
+  const categories = [{ key: '', label: 'All matter categories', judgmentCount: state.judgmentMatterType
+    ? (publishedTypes.find((item) => item.key === state.judgmentMatterType)?.judgmentCount || 0)
+    : (statisticsJudgmentMeta?.publishedCount || 0) }, ...publishedCategories];
+  replace('statistics-judgment-matter-type-options', types);
+  replace('statistics-judgment-matter-category-options', categories);
+  const selectedType = types.find((item) => item.key === state.judgmentMatterType) || types[0];
+  const selectedCategory = categories.find((item) => item.key === state.judgmentMatterCategory) || categories[0];
+  document.getElementById('statistics-judgment-matter-type').value = selectedType.label;
+  document.getElementById('statistics-judgment-matter-category').value = selectedCategory.label;
 }
 
 function statisticsDatasetFromInput(input, fallback = STATISTICS_DEFAULT_STATE.dataset) {
@@ -13135,6 +13219,16 @@ function statisticsSanitizeState(raw) {
   const requestedJudgmentMeasure = String(raw?.judgmentMeasure || '');
   const judgmentMeasure = STATISTICS_JUDGMENT_MEASURES.has(requestedJudgmentMeasure)
     ? requestedJudgmentMeasure : STATISTICS_DEFAULT_STATE.judgmentMeasure;
+  const matterTypes = [{ key: '', label: 'All matter types' }, ...(statisticsJudgmentMeta?.matterTypes || [])];
+  const requestedJudgmentMatterType = String(raw?.judgmentMatterType || '');
+  const judgmentMatterType = matterTypes.some((item) => item.key === requestedJudgmentMatterType)
+    ? requestedJudgmentMatterType : '';
+  const matterCategories = statisticsJudgmentMeta?.matterCategories || [];
+  const requestedJudgmentMatterCategory = String(raw?.judgmentMatterCategory || '');
+  const judgmentMatterCategory = matterCategories.some((item) => (
+    item.key === requestedJudgmentMatterCategory
+    && (!judgmentMatterType || item.matterType === judgmentMatterType)
+  )) ? requestedJudgmentMatterCategory : '';
   const requestedCategoryMeasure = String(raw?.categoryMeasure || '');
   const categoryMeasure = STATISTICS_CATEGORY_MEASURES.has(requestedCategoryMeasure)
     ? requestedCategoryMeasure : STATISTICS_DEFAULT_STATE.categoryMeasure;
@@ -13181,6 +13275,8 @@ function statisticsSanitizeState(raw) {
     rankingTopic,
     rankingMeasure,
     judgmentMeasure,
+    judgmentMatterType,
+    judgmentMatterCategory,
     categoryNodeId,
     categoryMeasure,
     view,
@@ -13441,11 +13537,6 @@ function statisticsDashboardPrettyLabel(value) {
   return String(value || '').replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function statisticsDashboardCompactNumber(value) {
-  return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 })
-    .format(Math.max(0, Number(value) || 0));
-}
-
 function statisticsDashboardCombineRows(nodes, property, key) {
   const totals = new Map();
   for (const node of nodes) {
@@ -13487,7 +13578,7 @@ function statisticsDashboardContext(state = statisticsControlState) {
 function statisticsDashboardMetric(label, value, note) {
   const exact = Math.max(0, Number(value) || 0).toLocaleString();
   return `<article class="statistics-dashboard-metric"><span>${escapeHtml(label)}</span>`
-    + `<strong title="${escapeHtml(exact)}">${escapeHtml(statisticsDashboardCompactNumber(value))}</strong>`
+    + `<strong>${escapeHtml(exact)}</strong>`
     + `<small>${escapeHtml(note)}</small></article>`;
 }
 
@@ -13512,7 +13603,7 @@ function statisticsDashboardTrend(rows, cases) {
   const sorted = [...rows].filter((row) => /^\d{4}$/.test(row.value)).sort((left, right) => Number(left.value) - Number(right.value));
   const maximum = Math.max(1, ...sorted.map((row) => row.cases));
   const items = sorted.map((row) => `<li aria-label="${escapeHtml(row.value)}: ${escapeHtml(row.cases.toLocaleString())} cases">`
-    + `<span>${escapeHtml(statisticsDashboardCompactNumber(row.cases))}</span>`
+    + `<span>${escapeHtml(row.cases.toLocaleString())}</span>`
     + `<span class="statistics-dashboard-trend-bar"><i style="height:${(100 * row.cases / maximum).toFixed(3)}%"></i></span>`
     + `<span>${escapeHtml(row.value)}</span></li>`).join('');
   return `<section class="statistics-dashboard-card is-wide"><header><h3>Cases filed by year</h3>`
@@ -13617,11 +13708,14 @@ function statisticsSyncControls(state = statisticsControlState) {
   if (viewerShell) viewerShell.hidden = isDashboard;
   document.getElementById('statistics-dataset-control').hidden = isRankings || isJudgments;
   document.getElementById('statistics-topic-control').hidden = !isRankings;
+  document.getElementById('statistics-judgment-matter-type-control').hidden = !isJudgments;
+  document.getElementById('statistics-judgment-matter-category-control').hidden = !isJudgments;
   document.getElementById('statistics-dataset').value = (
     STATISTICS_DATASETS[state.dataset]?.controlLabel || STATISTICS_DATASETS[state.dataset]?.label || ''
   );
   const topic = statisticsRankingTopics.find((entry) => entry.key === state.rankingTopic);
   document.getElementById('statistics-topic').value = topic?.label || '';
+  statisticsUpdateJudgmentFacetOptions(state);
   statisticsUpdateMeasureOptions(state);
   document.getElementById('statistics-view').value = STATISTICS_VIEW_OPTIONS.get(state.view) || 'Table';
   document.getElementById('statistics-sort').value = STATISTICS_SORT_OPTIONS.get(state.sort) || 'Largest first';
@@ -13689,6 +13783,20 @@ function statisticsReadControls() {
       : isCategories ? statisticsControlState.categoryLimit : statisticsControlState.limit,
   );
   const selectedFilter = document.getElementById('statistics-filter').value;
+  const matterTypes = [{ key: '', label: 'All matter types' }, ...(statisticsJudgmentMeta?.matterTypes || [])];
+  const selectedJudgmentMatterType = statisticsJudgmentFacetFromInput(
+    matterTypes,
+    document.getElementById('statistics-judgment-matter-type').value,
+    statisticsControlState.judgmentMatterType,
+  );
+  const matterCategories = [{ key: '', label: 'All matter categories', matterType: '' }, ...(statisticsJudgmentMeta?.matterCategories || []).filter((item) => (
+    !selectedJudgmentMatterType || item.matterType === selectedJudgmentMatterType
+  ))];
+  const selectedJudgmentMatterCategory = statisticsJudgmentFacetFromInput(
+    matterCategories,
+    document.getElementById('statistics-judgment-matter-category').value,
+    statisticsControlState.judgmentMatterCategory,
+  );
   return statisticsSanitizeState({
     ...statisticsControlState,
     dataset: selectedDataset,
@@ -13697,6 +13805,10 @@ function statisticsReadControls() {
     rankingTopic: selectedTopic?.key || statisticsControlState.rankingTopic,
     rankingMeasure: isRankings ? selectedMeasure : statisticsControlState.rankingMeasure,
     judgmentMeasure: isJudgments ? selectedMeasure : statisticsControlState.judgmentMeasure,
+    judgmentMatterType: isJudgments
+      ? selectedJudgmentMatterType : statisticsControlState.judgmentMatterType,
+    judgmentMatterCategory: isJudgments
+      ? selectedJudgmentMatterCategory : statisticsControlState.judgmentMatterCategory,
     categoryMeasure: isCategories ? selectedMeasure : statisticsControlState.categoryMeasure,
     view: statisticsOptionFromInput(
       STATISTICS_VIEW_OPTIONS,
@@ -13859,7 +13971,9 @@ function statisticsPreparedRows(state) {
       || left['Case number'].localeCompare(right['Case number'])
     ));
     const rows = rankedRows.filter((row) => (
-      !needle || statisticsJudgmentRowMatchesSearch(row, needle)
+      (!state.judgmentMatterType || row['Matter type key'] === state.judgmentMatterType)
+      && (!state.judgmentMatterCategory || row['Matter category key'] === state.judgmentMatterCategory)
+      && (!needle || statisticsJudgmentRowMatchesSearch(row, needle))
     ));
     rows.sort((left, right) => {
       if (state.sort === 'name_asc') return left['Case number'].localeCompare(right['Case number']);
@@ -13871,7 +13985,8 @@ function statisticsPreparedRows(state) {
     return {
       categoryField: 'Case number',
       measure: state.judgmentMeasure,
-      total: needle ? rows.length : (statisticsJudgmentMeta?.publishedCount || rows.length),
+      total: needle || state.judgmentMatterType || state.judgmentMatterCategory
+        ? rows.length : (statisticsJudgmentMeta?.publishedCount || rows.length),
       rows: state.judgmentLimit ? rows.slice(0, state.judgmentLimit) : rows,
     };
   }
@@ -14407,11 +14522,20 @@ async function statisticsApplyControls(applyGeneration = statisticsApplyGenerati
       ? ' · each distinct case counted once per associated attorney; attorney totals are not additive' : '';
     completedState = `${topic?.label || 'Matter type'} · ${rowSummary} · ${measure}${categories}${classified}${judgmentCaveat}`;
   } else if (isJudgments) {
+    const selectedType = statisticsJudgmentMeta?.matterTypes
+      ?.find((item) => item.key === statisticsControlState.judgmentMatterType)?.label;
+    const selectedCategory = statisticsJudgmentMeta?.matterCategories
+      ?.find((item) => item.key === statisticsControlState.judgmentMatterCategory)?.label;
+    const facets = [selectedType, selectedCategory].filter(Boolean);
+    const facetStatus = facets.length
+      ? ` · filters: ${facets.join(' / ')}${statisticsControlState.judgmentFilter ? ` · ${rowSummary}` : ''}`
+      : '';
     completedState = statisticsControlState.judgmentFilter
       ? statisticsJudgmentSearchStatus()
       : `Monetary judgments · ${rowSummary}`
         + (incrementalJudgments && shown < statisticsJudgmentMeta.publishedCount ? ' · scroll for more' : '')
         + ' · explicit total; components shown but not added';
+    completedState += facetStatus;
   } else {
     completedState = `${STATISTICS_DATASETS[statisticsControlState.dataset].label} · ${rowSummary} · ${measure}`
       + (statisticsDataCaveat ? ` · ${statisticsDataCaveat}` : '');
@@ -14617,6 +14741,20 @@ function wireStatisticsWorkspace() {
     statisticsSyncControls(statisticsControlState);
     statisticsQueueApply();
   });
+  document.getElementById('statistics-judgment-matter-type')?.addEventListener('change', () => {
+    const items = [{ key: '', label: 'All matter types' }, ...(statisticsJudgmentMeta?.matterTypes || [])];
+    const judgmentMatterType = statisticsJudgmentFacetFromInput(
+      items,
+      document.getElementById('statistics-judgment-matter-type').value,
+      statisticsControlState.judgmentMatterType,
+    );
+    statisticsControlState = statisticsSanitizeState({
+      ...statisticsReadControls(), judgmentMatterType, judgmentMatterCategory: '',
+    });
+    statisticsSyncControls(statisticsControlState);
+    statisticsQueueApply();
+  });
+  document.getElementById('statistics-judgment-matter-category')?.addEventListener('change', statisticsQueueApply);
   document.getElementById('statistics-measure')?.addEventListener('change', statisticsQueueApply);
   document.getElementById('statistics-sort')?.addEventListener('change', statisticsQueueApply);
   document.getElementById('statistics-limit')?.addEventListener('change', statisticsQueueApply);

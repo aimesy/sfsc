@@ -1253,8 +1253,8 @@ assert.match(html, /id="statistics-dataset"[\s\S]*?id="statistics-measure"[\s\S]
   'Statistics should expose concrete dropdown and type-in controls');
 assert.match(html, /id="statistics-dataset" list="statistics-dataset-options"[\s\S]*?value="Case categories"[\s\S]*?value="Case type"/,
   'Case categories should be the first and default Group by option');
-assert.match(html, /data-statistics-mode="aggregates"[\s\S]*?data-statistics-mode="dashboard"[\s\S]*?data-statistics-mode="rankings"[\s\S]*?data-statistics-mode="judgments"/,
-  'Statistics should place the dashboard immediately after Aggregates and preserve both ranking modes');
+assert.match(html, /data-statistics-mode="dashboard"[\s\S]*?data-statistics-mode="aggregates"[\s\S]*?data-statistics-mode="rankings"[\s\S]*?data-statistics-mode="judgments"/,
+  'Statistics should place the Dashboard furthest left and preserve both ranking modes');
 assert.match(html, /id="statistics-dashboard"[\s\S]*?id="statistics-dashboard-content"/,
   'Statistics should expose a dedicated dashboard surface');
 assert.match(html, /\.statistics-controls\[hidden\],[\s\S]*?\.statistics-toolbar\[hidden\],[\s\S]*?\.statistics-viewer-shell\[hidden\] \{ display: none; \}/,
@@ -1263,6 +1263,8 @@ assert.match(html, /Cases filed by year[\s\S]*?function statisticsRenderDashboar
   'the dashboard should render filing history and ranking-backed headline coverage');
 assert.match(html, /function statisticsDashboardContext[\s\S]*?filings_by_year[\s\S]*?docket_tracks[\s\S]*?attributes/,
   'the dashboard category filter should drive filing, docket-track, and attribute charts');
+assert.doesNotMatch(html, /statisticsDashboardCompactNumber|notation: 'compact'/,
+  'dashboard figures should always display their exact published values');
 assert.match(html, /content\.querySelector\('\.statistics-dashboard-trend'\)[\s\S]*?trend\.scrollLeft = trend\.scrollWidth/,
   'the filing chart should open on the most recent years without discarding full history');
 assert.match(html, /const STATISTICS_MODES = new Set\(\['aggregates', 'dashboard', 'rankings', 'judgments'\]\)/,
@@ -1330,8 +1332,12 @@ assert.match(html, /entry\.path\.startsWith\('data\/judgment-rankings\/'\)[\s\S]
   'remote-only judgment shards should skip a guaranteed Pages 404');
 assert.match(html, /async function statisticsLoadNextJudgmentShard\(\)[\s\S]*?statisticsTable\.update\(pageRows\)[\s\S]*?scroll for more/,
   'ordinary judgment browsing should append one rank shard without replacing or downloading the full table');
-assert.match(html, /function statisticsJudgmentRequiresFullScan\(state = statisticsControlState\)[\s\S]*?state\.view !== 'Datagrid'[\s\S]*?&& !state\.judgmentFilter/,
-  'judgment filters must not trigger the complete ranking-shard scan');
+assert.match(html, /function statisticsJudgmentRequiresFullScan\(state = statisticsControlState\)[\s\S]*?state\.judgmentMatterType[\s\S]*?state\.judgmentMatterCategory[\s\S]*?&& !state\.judgmentFilter/,
+  'matter filters should use the complete judgment ranking while text search stays selective');
+assert.match(html, /id="statistics-judgment-matter-type"[\s\S]*?id="statistics-judgment-matter-category"[\s\S]*?Matter type key[\s\S]*?Matter category key/,
+  'judgment rankings should expose consistent matter type and matter category filters');
+assert.match(pagesWorkflow, /enrich_judgment_matter_facets\.mjs[\s\S]*?judgment-matter-facets\.json[\s\S]*?build_judgment_search_index\.mjs/,
+  'Pages should enrich ranking shards and selective search details from one matter-facet mapping');
 assert.match(html, /STATISTICS_JUDGMENT_SEARCH_URL = 'data\/judgment-search\/manifest\.json'[\s\S]*?statisticsFindJudgmentCandidates[\s\S]*?statisticsLoadJudgmentSearchDetail/,
   'judgment filters should use the compact selective search index');
 assert.match(html, /function statisticsJudgmentSearchStatus[\s\S]*?relevant result shards checked[\s\S]*?scroll for more/,

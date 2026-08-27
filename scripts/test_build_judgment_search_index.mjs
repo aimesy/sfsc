@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import {
   buildJudgmentSearchIndex,
+  DETAIL_COLUMNS,
   encodeDeltaVarints,
   normalizeSearchText,
   postingBucket,
@@ -23,7 +24,7 @@ try {
   const outputDir = path.join(root, 'search');
   fs.mkdirSync(rankingDir, { recursive: true });
   const rows = [
-    { rank: 1, case_number: 'CGC24000001', case_title: 'Alpha v. Smith', judgment_amount: 100, attorneys: [{ attorney_name: 'Jane Doe' }] },
+    { rank: 1, case_number: 'CGC24000001', case_title: 'Alpha v. Smith', judgment_amount: 100, attorneys: [{ attorney_name: 'Jane Doe' }], matter_type: 'Civil', matter_type_key: 'civil', matter_category: 'Contract', matter_category_key: 'civil:contract' },
     { rank: 2, case_number: 'CGC24000002', case_title: 'Beta', judgment_amount: 90, attorneys: [{ attorney_name: 'John Smith' }] },
     { rank: 3, case_number: 'CGC24000003', case_title: 'Gamma', judgment_amount: 80, attorneys: [] },
   ];
@@ -46,6 +47,8 @@ try {
   assert.equal(outputManifest.detail_shards.length, 2);
   const firstRows = JSON.parse(fs.readFileSync(path.join(outputDir, 'rows', '000001-000002.json')));
   assert.equal(firstRows.r.length, 2);
+  assert.equal(firstRows.r[0][DETAIL_COLUMNS.indexOf('matter_type_key')], 'civil');
+  assert.equal(firstRows.r[0][DETAIL_COLUMNS.indexOf('matter_category_key')], 'civil:contract');
   const smithBucket = JSON.parse(fs.readFileSync(path.join(outputDir, 'postings', `${String(postingBucket('smi', 8)).padStart(2, '0')}.json`)));
   assert(smithBucket.p.smi);
 } finally {

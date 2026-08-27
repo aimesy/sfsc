@@ -489,6 +489,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          node scripts/test_enrich_judgment_matter_facets.mjs
+          node --max-old-space-size=4096 scripts/enrich_judgment_matter_facets.mjs \
+            --manifest _site/data/judgment-rankings.json \
+            --ranking-dir _data_repo/data/judgment-rankings \
+            --taxonomy _site/data/case-category-statistics.json \
+            --category-cases _site/data/clerk-category-cases.json \
+            --output _site/data/judgment-matter-facets.json
           node scripts/test_build_judgment_search_index.mjs
           node --max-old-space-size=4096 scripts/build_judgment_search_index.mjs \
             --manifest _site/data/judgment-rankings.json \
