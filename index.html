@@ -5575,7 +5575,7 @@
   <main class="statistics-main">
     <div class="statistics-modebar" role="tablist" aria-label="Statistics mode">
       <button type="button" class="statistics-mode-tab" id="statistics-mode-dashboard" data-statistics-mode="dashboard" role="tab" aria-selected="false">Dashboard</button>
-      <button type="button" class="statistics-mode-tab" id="statistics-mode-aggregates" data-statistics-mode="aggregates" role="tab" aria-selected="true">Aggregates</button>
+      <button type="button" class="statistics-mode-tab" id="statistics-mode-aggregates" data-statistics-mode="aggregates" role="tab" aria-selected="true">Case types</button>
       <button type="button" class="statistics-mode-tab" id="statistics-mode-rankings" data-statistics-mode="rankings" role="tab" aria-selected="false">Attorney rankings</button>
       <button type="button" class="statistics-mode-tab" id="statistics-mode-judgments" data-statistics-mode="judgments" role="tab" aria-selected="false">Judgment rankings</button>
     </div>
@@ -13193,7 +13193,7 @@ function statisticsIsCategories(state = statisticsControlState) {
 }
 
 function statisticsMeasureOptions(state = statisticsControlState) {
-  if (state.mode === 'rankings') return STATISTICS_RANKING_MEASURES;
+  if (state.mode === 'rankings') return statisticsRankingMeasureOptions(state);
   if (state.mode === 'judgments') return STATISTICS_JUDGMENT_MEASURES;
   if (statisticsIsCategories(state)) return STATISTICS_CATEGORY_MEASURES;
   return new Map(state.dataset === 'judges'
@@ -13214,8 +13214,6 @@ function statisticsSanitizeState(raw) {
   const aggregateMeasure = dataset === 'judges' && requestedAggregateMeasure === 'Tentative rulings'
     ? 'Tentative rulings' : 'Cases';
   const requestedRankingMeasure = String(raw?.rankingMeasure || '');
-  const rankingMeasure = STATISTICS_RANKING_MEASURES.has(requestedRankingMeasure)
-    ? requestedRankingMeasure : STATISTICS_DEFAULT_STATE.rankingMeasure;
   const requestedJudgmentMeasure = String(raw?.judgmentMeasure || '');
   const judgmentMeasure = STATISTICS_JUDGMENT_MEASURES.has(requestedJudgmentMeasure)
     ? requestedJudgmentMeasure : STATISTICS_DEFAULT_STATE.judgmentMeasure;
@@ -13267,6 +13265,9 @@ function statisticsSanitizeState(raw) {
       )];
     }
   }
+  const rankingMeasureOptions = statisticsRankingMeasureOptions({ rankingTopic, categorySelections });
+  const rankingMeasure = rankingMeasureOptions.has(requestedRankingMeasure)
+    ? requestedRankingMeasure : STATISTICS_DEFAULT_STATE.rankingMeasure;
   return {
     mode,
     dashboardNodeId,
@@ -13362,6 +13363,21 @@ function statisticsHasCustomCategorySelection(state, topic) {
   const selected = statisticsSelectedCategoryKeys(state, topic);
   return selected.size !== topic.categories.length
     || topic.categories.some((category) => !selected.has(category.key));
+}
+
+function statisticsPracticeShareAvailable(state, topic = statisticsTopicForState(state)) {
+  return topic?.key !== 'all_matters' || statisticsHasCustomCategorySelection(state, topic);
+}
+
+function statisticsRankingMeasureOptions(state = statisticsControlState) {
+  if (statisticsPracticeShareAvailable(state)) return STATISTICS_RANKING_MEASURES;
+  return new Map([...STATISTICS_RANKING_MEASURES]
+    .filter(([measure]) => measure !== 'Practice share (%)'));
+}
+
+function statisticsRankingColumns(state, columns) {
+  return statisticsPracticeShareAvailable(state)
+    ? columns : columns.filter((column) => column !== 'Practice share (%)');
 }
 
 function statisticsRankingNeedsDetail(state, topic) {
@@ -14465,7 +14481,7 @@ async function statisticsApplyControls(applyGeneration = statisticsApplyGenerati
       ? `${taxonomyNode?.label || 'Case categories'} by ${measure.toLowerCase()}`
       : `${STATISTICS_DATASETS[statisticsControlState.dataset].label} by ${measure === 'Cases' ? 'case count' : 'tentative ruling count'}`;
   const tableColumns = isRankings
-    ? STATISTICS_RANKING_COLUMNS
+    ? statisticsRankingColumns(statisticsControlState, STATISTICS_RANKING_COLUMNS)
     : isJudgments
       ? STATISTICS_JUDGMENT_COLUMNS
     : isCategories
@@ -14580,7 +14596,7 @@ async function statisticsExportCsv() {
   }
   const prepared = statisticsPreparedRows(state);
   const columns = state.mode === 'rankings'
-    ? STATISTICS_RANKING_EXPORT_COLUMNS
+    ? statisticsRankingColumns(state, STATISTICS_RANKING_EXPORT_COLUMNS)
     : state.mode === 'judgments'
       ? STATISTICS_JUDGMENT_EXPORT_COLUMNS
     : statisticsIsCategories(state)

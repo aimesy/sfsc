@@ -1255,6 +1255,10 @@ assert.match(html, /id="statistics-dataset" list="statistics-dataset-options"[\s
   'Case categories should be the first and default Group by option');
 assert.match(html, /data-statistics-mode="dashboard"[\s\S]*?data-statistics-mode="aggregates"[\s\S]*?data-statistics-mode="rankings"[\s\S]*?data-statistics-mode="judgments"/,
   'Statistics should place the Dashboard furthest left and preserve both ranking modes');
+assert.match(html, /data-statistics-mode="aggregates"[^>]*>Case types<\/button>/,
+  'Statistics should label the aggregate mode Case types');
+assert.match(html, /function statisticsPracticeShareAvailable[\s\S]*?topic\?\.key !== 'all_matters'[\s\S]*?function statisticsRankingColumns[\s\S]*?column !== 'Practice share \(%\)'/,
+  'Practice share should be omitted while all jurisdictions are showing');
 assert.match(html, /id="statistics-dashboard"[\s\S]*?id="statistics-dashboard-content"/,
   'Statistics should expose a dedicated dashboard surface');
 assert.match(html, /\.statistics-controls\[hidden\],[\s\S]*?\.statistics-toolbar\[hidden\],[\s\S]*?\.statistics-viewer-shell\[hidden\] \{ display: none; \}/,
