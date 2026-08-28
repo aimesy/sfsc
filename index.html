@@ -1708,10 +1708,6 @@
     .statistics-dashboard-header h2 {
       margin: 0; font-family: var(--font-serif); font-size: 1.2rem;
     }
-    .statistics-dashboard-header p,
-    .statistics-dashboard-card header p {
-      margin: 0.2rem 0 0; color: var(--ink-3); font: 0.64rem/1.4 var(--font-mono);
-    }
     .statistics-dashboard-filter {
       display: grid; gap: 0.2rem; min-width: min(360px, 100%);
       color: var(--ink-3); font: 0.62rem var(--font-mono);
@@ -1730,8 +1726,7 @@
       min-width: 0; padding: 0.65rem; border-right: 1px solid var(--rule);
       border-bottom: 1px solid var(--rule); background: var(--paper);
     }
-    .statistics-dashboard-metric span,
-    .statistics-dashboard-metric small {
+    .statistics-dashboard-metric span {
       display: block; color: var(--ink-3); font: 0.6rem/1.35 var(--font-mono);
     }
     .statistics-dashboard-metric strong {
@@ -13591,14 +13586,13 @@ function statisticsDashboardContext(state = statisticsControlState) {
   };
 }
 
-function statisticsDashboardMetric(label, value, note) {
+function statisticsDashboardMetric(label, value) {
   const exact = Math.max(0, Number(value) || 0).toLocaleString();
   return `<article class="statistics-dashboard-metric"><span>${escapeHtml(label)}</span>`
-    + `<strong>${escapeHtml(exact)}</strong>`
-    + `<small>${escapeHtml(note)}</small></article>`;
+    + `<strong>${escapeHtml(exact)}</strong></article>`;
 }
 
-function statisticsDashboardRanking(title, subtitle, rows, cases, wide = false) {
+function statisticsDashboardRanking(title, rows, cases, wide = false) {
   const sorted = [...rows].sort((left, right) => right.cases - left.cases || left.value.localeCompare(right.value)).slice(0, 12);
   const maximum = Math.max(1, ...sorted.map((row) => row.cases));
   const items = sorted.map((row) => {
@@ -13610,7 +13604,7 @@ function statisticsDashboardRanking(title, subtitle, rows, cases, wide = false) 
       + `<small>${share.toFixed(1)}% of selected cases</small></li>`;
   }).join('');
   return `<section class="statistics-dashboard-card${wide ? ' is-wide' : ''}"><header><h3>${escapeHtml(title)}</h3>`
-    + `<p>${escapeHtml(subtitle)}</p></header><ol class="statistics-dashboard-ranking">`
+    + `</header><ol class="statistics-dashboard-ranking">`
     + (items || '<li class="statistics-dashboard-empty">No values published for this selection.</li>')
     + '</ol></section>';
 }
@@ -13623,7 +13617,7 @@ function statisticsDashboardTrend(rows, cases) {
     + `<span class="statistics-dashboard-trend-bar"><i style="height:${(100 * row.cases / maximum).toFixed(3)}%"></i></span>`
     + `<span>${escapeHtml(row.value)}</span></li>`).join('');
   return `<section class="statistics-dashboard-card is-wide"><header><h3>Cases filed by year</h3>`
-    + `<p>${escapeHtml(cases.toLocaleString())} selected cases; bars start at zero.</p></header>`
+    + `</header>`
     + `<ol class="statistics-dashboard-trend">${items || '<li class="statistics-dashboard-empty">No filing years published.</li>'}</ol></section>`;
 }
 
@@ -13665,24 +13659,23 @@ function statisticsRenderDashboard(state = statisticsControlState) {
   const clerkCount = context.node
     ? Math.max(0, Number(context.node.clerk_category_count) || 0)
     : statisticsTaxonomyClerkRows.length;
-  const recentWindow = statisticsFormatAsOfDate(statisticsTaxonomyMeta.last2YearsStartDate);
   const asOf = statisticsFormatAsOfDate(statisticsTaxonomyMeta.asOfDate);
   const methods = statisticsTaxonomyMeta.methodology || {};
   content.innerHTML = `<header class="statistics-dashboard-header"><div><h2>Archive statistics</h2>`
-    + `<p>Published SFSC corpus at the one-case grain. The category filter applies to every category-based metric and chart.</p></div>`
+    + `</div>`
     + `<label class="statistics-dashboard-filter">Case category<select id="statistics-dashboard-category">${statisticsDashboardCategoryOptions(state.dashboardNodeId)}</select></label></header>`
     + `<section class="statistics-dashboard-metrics" aria-label="Headline archive metrics">`
-    + statisticsDashboardMetric('Cases', context.cases, 'distinct archived matters')
-    + statisticsDashboardMetric('Last 2 years', context.recentCases, `filed since ${recentWindow || 'published cutoff'}`)
-    + statisticsDashboardMetric('Category branches', directCategoryCount, context.node ? 'direct children shown below' : 'top-level court domains')
-    + statisticsDashboardMetric('Clerk categories', clerkCount, context.node ? 'mapped beneath this branch' : 'verbatim source categories')
-    + statisticsDashboardMetric('Ranked attorneys', rankedAttorneys, 'all-matters ranking coverage')
-    + statisticsDashboardMetric('Monetary judgments', statisticsJudgmentMeta?.publishedCount || 0, 'qualified explicit totals')
+    + statisticsDashboardMetric('Cases', context.cases)
+    + statisticsDashboardMetric('Last 2 years', context.recentCases)
+    + statisticsDashboardMetric('Category branches', directCategoryCount)
+    + statisticsDashboardMetric('Clerk categories', clerkCount)
+    + statisticsDashboardMetric('Ranked attorneys', rankedAttorneys)
+    + statisticsDashboardMetric('Monetary judgments', statisticsJudgmentMeta?.publishedCount || 0)
     + `</section><div class="statistics-dashboard-grid">`
     + statisticsDashboardTrend(context.filingYears, context.cases)
-    + statisticsDashboardRanking(context.node ? 'Category mix' : 'Court domain mix', context.node ? 'Direct taxonomy children, or exact clerk categories at a leaf.' : 'Mutually exclusive top-level case categories.', categoryRows, context.cases, true)
-    + statisticsDashboardRanking('Docket track', 'Case-number-based court tracks within the selected category.', context.docketTracks, context.cases)
-    + statisticsDashboardRanking('Matter attributes', 'Nonexclusive procedural, remedy, and matter attributes; totals are not additive.', context.attributes, context.cases)
+    + statisticsDashboardRanking(context.node ? 'Category mix' : 'Court domain mix', categoryRows, context.cases, true)
+    + statisticsDashboardRanking('Docket track', context.docketTracks, context.cases)
+    + statisticsDashboardRanking('Matter attributes', context.attributes, context.cases)
     + `</div><footer class="statistics-dashboard-method"><strong>Source and definitions</strong>`
     + `<span>Published through ${escapeHtml(asOf || 'date unavailable')} from the versioned SFSC case-category, attorney-ranking, and judgment-ranking contracts.</span>`
     + `<span>Cases: ${escapeHtml(String(methods.matter_unit || 'distinct nonblank case number'))}. Primary category: ${escapeHtml(String(methods.primary_assignment || 'one mutually exclusive assignment per case'))}.</span>`

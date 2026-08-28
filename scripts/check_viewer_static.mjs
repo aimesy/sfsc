@@ -1265,6 +1265,8 @@ assert.match(html, /\.statistics-controls\[hidden\],[\s\S]*?\.statistics-toolbar
   'dashboard mode must visibly remove the aggregate controls and Perspective shell');
 assert.match(html, /Cases filed by year[\s\S]*?function statisticsRenderDashboard\(state = statisticsControlState\)[\s\S]*?Ranked attorneys[\s\S]*?Monetary judgments/,
   'the dashboard should render filing history and ranking-backed headline coverage');
+assert.doesNotMatch(html, /qualified explicit totals|Case-number-based court tracks|Published SFSC corpus at the one-case grain/,
+  'dashboard subtitle copy should remain absent');
 assert.match(html, /function statisticsDashboardContext[\s\S]*?filings_by_year[\s\S]*?docket_tracks[\s\S]*?attributes/,
   'the dashboard category filter should drive filing, docket-track, and attribute charts');
 assert.doesNotMatch(html, /statisticsDashboardCompactNumber|notation: 'compact'/,
