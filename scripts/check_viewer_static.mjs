@@ -1247,6 +1247,16 @@ assert.match(html, /STATISTICS_STORAGE_KEY = 'sfsc\.statistics\.controls\.v9'[\s
   'the explicit Statistics controls should persist locally after live changes');
 assert.match(html, /<perspective-viewer id="statistics-viewer"/,
   'Statistics should render through a single configurable Perspective viewer');
+const statisticsResizeCallback = html.match(/statisticsResizeTimer = setTimeout\(\(\) => \{([\s\S]*?)\n    \}, 120\);/);
+assert.ok(statisticsResizeCallback, 'Statistics resize callback should exist');
+const runStatisticsResize = new Function('document', 'statisticsTable', statisticsResizeCallback[1]);
+for (const viewer of [null, {}]) {
+  assert.doesNotThrow(() => runStatisticsResize({ getElementById: () => viewer }, null),
+    'resizing during Statistics initialization must tolerate an absent or unupgraded viewer');
+}
+let statisticsResizeCalls = 0;
+runStatisticsResize({ getElementById: () => ({ resize() { statisticsResizeCalls++; } }) }, null);
+assert.equal(statisticsResizeCalls, 1, 'an initialized Statistics viewer should still resize');
 assert.match(html, /STATISTICS_DEFAULT_STATE[\s\S]*?mode: 'aggregates'[\s\S]*?dataset: 'case_categories'[\s\S]*?aggregateMeasure: 'Cases'[\s\S]*?rankingTopic: 'all_matters'[\s\S]*?rankingMeasure: 'Matters within the last 2 years'[\s\S]*?view: 'Datagrid'[\s\S]*?sort: 'value_desc'/,
   'Statistics should open on Case categories and default attorney rankings to all matters in the exact two-year window');
 assert.match(html, /id="statistics-dataset"[\s\S]*?id="statistics-measure"[\s\S]*?id="statistics-view"[\s\S]*?id="statistics-sort"[\s\S]*?id="statistics-limit"[\s\S]*?id="statistics-filter"/,

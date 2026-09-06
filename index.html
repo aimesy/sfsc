@@ -14809,7 +14809,7 @@ function wireStatisticsWorkspace() {
     clearTimeout(statisticsResizeTimer);
     statisticsResizeTimer = setTimeout(() => {
       const viewer = document.getElementById('statistics-viewer');
-      viewer?.resize();
+      viewer?.resize?.();
       if (statisticsTable && viewer && !viewer.hidden) {
         statisticsFitPerspectiveDatagrid(viewer)
           .catch((error) => statisticsSetState(error?.message || String(error), true));
